@@ -28,6 +28,32 @@ local function makeLethal(model, deathReason, filterName)
                 if hum and hum.Health > 0 then
                     local p = Players:GetPlayerFromCharacter(char)
                     if p and not char:GetAttribute("Immune") and not char:GetAttribute("Invisible") and not p:GetAttribute("GameLost") then
+                        if char:GetAttribute("HasShield") then
+                            char:SetAttribute("HasShield", nil)
+                            local ff = char:FindFirstChild("ShieldFF")
+                            if ff then ff:Destroy() end
+                            
+                            local shieldTool = char:FindFirstChild("Shield")
+                            if shieldTool and shieldTool:IsA("Tool") then
+                                shieldTool:Destroy()
+                            end
+                            
+                            local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+                            local playSoundRemote = remotesFolder and remotesFolder:FindFirstChild("PlaySoundClient")
+                            if playSoundRemote then
+                                playSoundRemote:FireClient(p, "ShieldBreak")
+                            end
+                            
+                            char:SetAttribute("Immune", true)
+                            local newFf = Instance.new("ForceField")
+                            newFf.Parent = char
+                            
+                            task.delay(4, function()
+                                if char then char:SetAttribute("Immune", nil) end
+                                if newFf then newFf:Destroy() end
+                            end)
+                            return
+                        end
                         
                         local currentHP = p:GetAttribute("HP") or Constants.MaximumHP
                         local damage = (deathReason == "Spikes") and Constants.SpikeDamage or Constants.LavaDamage
@@ -90,11 +116,22 @@ local function buildMaze()
     mazeFolder.Name = "MazeElements"
     mazeFolder.Parent = workspace
     
+    local function isInsideBase(instance)
+        local current = instance.Parent
+        while current and current ~= workspace do
+            if current.Name == "Base" then
+                return true
+            end
+            current = current.Parent
+        end
+        return false
+    end
+
     -- Cleanup rogue/manually-placed lights from Studio that cause mystery white lights.
     -- Scan ALL workspace objects (including deeply nested) for Neon parts or WhiteLightTeleporter names.
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
-            if obj.Name == "WhiteLightTeleporter" or obj.Material == Enum.Material.Neon then
+            if (obj.Name == "WhiteLightTeleporter" or obj.Material == Enum.Material.Neon) and not isInsideBase(obj) then
                 -- Check it's not a player character, dog, cat, boat, etc.
                 local safeNames = {"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso", "LeftLowerArm", "RightLowerArm"}
                 local isSafe = false
@@ -110,14 +147,9 @@ local function buildMaze()
         elseif obj:IsA("Light") then
             -- Destroy stray Light objects (PointLight, SpotLight, SurfaceLight)
             local p = obj.Parent
-            local inBase = false
-            local base = workspace:FindFirstChild("Base")
-            if base and p and p:IsDescendantOf(base) then
-                inBase = true
-            end
             
             -- Only destroy if not in Base, and not in ReplicatedStorage or ServerStorage
-            if not inBase and obj:IsDescendantOf(workspace) then
+            if not isInsideBase(obj) and obj:IsDescendantOf(workspace) then
                 print("[MazeBuilder] Destroying rogue Light object:", obj.Name, "parent:", p and p.Name or "nil")
                 obj:Destroy()
             end
@@ -217,39 +249,25 @@ local function buildMaze()
                 local wallModel = Instance.new("Model")
                 wallModel.Name = "Wall"
                 
-                local isOuterWall = (x == 1 or x == #row or z == 1 or z == #layout)
-                
                 local currentWallHeight = wallHeight
                 local biomeMidColor, biomeBaseColor, biomeTopColor
                 local midMat = Constants.WallMiddleMaterial
                 local baseMat = Constants.WallBaseMaterial
                 local topMat = Constants.WallTopMaterial
                 
-                if isOuterWall then
-                    currentWallHeight = wallHeight * 1.5
-                    local fortressColor = Color3.fromRGB(80, 80, 85)
-                    local darkFortress = Color3.fromRGB(50, 50, 55)
-                    biomeMidColor = fortressColor
-                    biomeBaseColor = darkFortress
-                    biomeTopColor = fortressColor
-                    midMat = Enum.Material.Cobblestone
-                    baseMat = Enum.Material.Cobblestone
-                    topMat = Enum.Material.Cobblestone
+                if alpha < 0.333 then
+                    local subAlpha = alpha / 0.333
+                    biomeMidColor = Constants.WallColorA:Lerp(Constants.WallColorB, subAlpha)
+                elseif alpha < 0.666 then
+                    local subAlpha = (alpha - 0.333) / 0.333
+                    biomeMidColor = Constants.WallColorB:Lerp(Constants.WallColorC, subAlpha)
                 else
-                    if alpha < 0.333 then
-                        local subAlpha = alpha / 0.333
-                        biomeMidColor = Constants.WallColorA:Lerp(Constants.WallColorB, subAlpha)
-                    elseif alpha < 0.666 then
-                        local subAlpha = (alpha - 0.333) / 0.333
-                        biomeMidColor = Constants.WallColorB:Lerp(Constants.WallColorC, subAlpha)
-                    else
-                        local subAlpha = (alpha - 0.666) / 0.334
-                        biomeMidColor = Constants.WallColorC:Lerp(Constants.WallColorD, subAlpha)
-                    end
-                    
-                    biomeBaseColor = Constants.WallBaseColor
-                    biomeTopColor = Constants.WallTopColor
+                    local subAlpha = (alpha - 0.666) / 0.334
+                    biomeMidColor = Constants.WallColorC:Lerp(Constants.WallColorD, subAlpha)
                 end
+                
+                biomeBaseColor = Constants.WallBaseColor
+                biomeTopColor = Constants.WallTopColor
                 
                 local groundY = 0.5
                 local middleHeight = currentWallHeight - Constants.WallBaseHeight - Constants.WallTopHeight
@@ -287,78 +305,64 @@ local function buildMaze()
                     block.Parent = wallModel
                 end
                 
-                if isOuterWall then
-                    local cw = cellSize + Constants.WallBaseOversize
-                    local block = Instance.new("Part")
-                    block.Name = "FortressWall"
-                    block.Anchored = true
-                    block.Size = Vector3.new(cw, currentWallHeight, cw)
-                    block.Position = Vector3.new(posX, groundY + currentWallHeight/2, posZ)
-                    block.Color = Color3.fromRGB(100, 100, 105)
-                    block.Material = Enum.Material.Cobblestone
-                    block.Parent = wallModel
-                    
-                    wallModel.PrimaryPart = block
-                else
-                    -- 1. Create Node (Cylinder) at current cell
-                    createCylinderNode("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY)
-                    createCylinderNode("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight)
-                    createCylinderNode("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight)
-                    
-                    local cw = cellSize + Constants.WallBaseOversize
-                    local colliderCyl = Instance.new("Part")
-                    colliderCyl.Name = "ColliderNode"
-                    colliderCyl.Anchored = true
-                    local roundness = Constants.WallCornerRoundness or 1.0
-                    colliderCyl.Shape = (roundness >= 0.5) and Enum.PartType.Cylinder or Enum.PartType.Block
-                    colliderCyl.Size = Vector3.new(currentWallHeight, cw, cw)
-                    colliderCyl.CFrame = CFrame.new(posX, groundY + currentWallHeight/2, posZ) * CFrame.Angles(0, 0, math.rad(90))
-                    colliderCyl.Transparency = 1
-                    colliderCyl.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
-                    colliderCyl.Parent = wallModel
-                    
-                    local function isWallLike(cType)
-                        if not cType then return false end
-                        -- Only actual wall cells (type 1) get edge blocks.
-                        -- Door cells (10,12,14,16,18,20) are NOT wall-like for this purpose:
-                        -- treating doors as walls causes edge blocks to spawn inside the portal opening.
-                        return cType == 1
-                    end
-                    
-                    -- 2. Create Right Edge if cell to the right is also a Wall
-                    if isWallLike(row[x+1]) then
-                        createEdgeBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY, true)
-                        createEdgeBlock("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight, true)
-                        createEdgeBlock("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight, true)
-                        
-                        local colliderBlock = Instance.new("Part")
-                        colliderBlock.Name = "ColliderEdgeRight"
-                        colliderBlock.Anchored = true
-                        colliderBlock.Size = Vector3.new(cellSize, currentWallHeight, cw)
-                        colliderBlock.Position = Vector3.new(posX + cellSize/2, groundY + currentWallHeight/2, posZ)
-                        colliderBlock.Transparency = 1
-                        colliderBlock.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
-                        colliderBlock.Parent = wallModel
-                    end
-                    
-                    -- 3. Create Down Edge if cell below is also a Wall
-                    if layout[z+1] and isWallLike(layout[z+1][x]) then
-                        createEdgeBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY, false)
-                        createEdgeBlock("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight, false)
-                        createEdgeBlock("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight, false)
-                        
-                        local colliderBlock = Instance.new("Part")
-                        colliderBlock.Name = "ColliderEdgeDown"
-                        colliderBlock.Anchored = true
-                        colliderBlock.Size = Vector3.new(cw, currentWallHeight, cellSize)
-                        colliderBlock.Position = Vector3.new(posX, groundY + currentWallHeight/2, posZ + cellSize/2)
-                        colliderBlock.Transparency = 1
-                        colliderBlock.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
-                        colliderBlock.Parent = wallModel
-                    end
-                    
-                    wallModel.PrimaryPart = colliderCyl
+                -- 1. Create Node (Cylinder) at current cell
+                createCylinderNode("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY)
+                createCylinderNode("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight)
+                createCylinderNode("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight)
+                
+                local cw = cellSize + Constants.WallBaseOversize
+                local colliderCyl = Instance.new("Part")
+                colliderCyl.Name = "ColliderNode"
+                colliderCyl.Anchored = true
+                local roundness = Constants.WallCornerRoundness or 1.0
+                colliderCyl.Shape = (roundness >= 0.5) and Enum.PartType.Cylinder or Enum.PartType.Block
+                colliderCyl.Size = Vector3.new(currentWallHeight, cw, cw)
+                colliderCyl.CFrame = CFrame.new(posX, groundY + currentWallHeight/2, posZ) * CFrame.Angles(0, 0, math.rad(90))
+                colliderCyl.Transparency = 1
+                colliderCyl.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
+                colliderCyl.Parent = wallModel
+                
+                local function isWallLike(cType)
+                    if not cType then return false end
+                    -- Only actual wall cells (type 1) get edge blocks.
+                    -- Door cells (10,12,14,16,18,20) are NOT wall-like for this purpose:
+                    -- treating doors as walls causes edge blocks to spawn inside the portal opening.
+                    return cType == 1
                 end
+                
+                -- 2. Create Right Edge if cell to the right is also a Wall
+                if isWallLike(row[x+1]) then
+                    createEdgeBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY, true)
+                    createEdgeBlock("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight, true)
+                    createEdgeBlock("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight, true)
+                    
+                    local colliderBlock = Instance.new("Part")
+                    colliderBlock.Name = "ColliderEdgeRight"
+                    colliderBlock.Anchored = true
+                    colliderBlock.Size = Vector3.new(cellSize, currentWallHeight, cw)
+                    colliderBlock.Position = Vector3.new(posX + cellSize/2, groundY + currentWallHeight/2, posZ)
+                    colliderBlock.Transparency = 1
+                    colliderBlock.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
+                    colliderBlock.Parent = wallModel
+                end
+                
+                -- 3. Create Down Edge if cell below is also a Wall
+                if layout[z+1] and isWallLike(layout[z+1][x]) then
+                    createEdgeBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY, false)
+                    createEdgeBlock("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight, false)
+                    createEdgeBlock("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight, false)
+                    
+                    local colliderBlock = Instance.new("Part")
+                    colliderBlock.Name = "ColliderEdgeDown"
+                    colliderBlock.Anchored = true
+                    colliderBlock.Size = Vector3.new(cw, currentWallHeight, cellSize)
+                    colliderBlock.Position = Vector3.new(posX, groundY + currentWallHeight/2, posZ + cellSize/2)
+                    colliderBlock.Transparency = 1
+                    colliderBlock.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
+                    colliderBlock.Parent = wallModel
+                end
+                
+                wallModel.PrimaryPart = colliderCyl
                 wallModel.Parent = mazeFolder
                 
             elseif cellType == 0 then
@@ -1328,8 +1332,9 @@ local function buildMaze()
                 if dMap[z] then
                     for x = 1, #dMap[z] do
                         local dType = dMap[z][x]
-                        local px = (x - 1) * cellSize
-                        local pz = (z - 1) * cellSize
+                        local offset = Constants.MazeOffset or Vector3.new(0, 0, 0)
+                        local px = (x - 1) * cellSize + offset.X
+                        local pz = (z - 1) * cellSize + offset.Z
                         if dType == 1 then
                             local sp = Instance.new("Part")
                             sp.Name = "DogSpawn"
@@ -1387,8 +1392,9 @@ local function buildMaze()
                 for x = 1, #pMap[z] do
                     -- Black pixels map to 1
                     if pMap[z][x] == 1 then
-                        local px = (x - 1) * cellSize
-                        local pz = (z - 1) * cellSize
+                        local offset = Constants.MazeOffset or Vector3.new(0, 0, 0)
+                        local px = (x - 1) * cellSize + offset.X
+                        local pz = (z - 1) * cellSize + offset.Z
                         
                         local scaleFactor = Constants.Parkour and Constants.Parkour.Scale or 0.425
                         -- The original Platform model has a diameter of 10 studs

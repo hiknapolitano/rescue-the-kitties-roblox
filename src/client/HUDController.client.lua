@@ -667,7 +667,7 @@ RunService.RenderStepped:Connect(function()
             
             -- Rotate the entire CanvasFrame so Roblox applies high-quality bilinear anti-aliasing
             -- to the whole minimap, keeping walls perfectly smooth with no gaps.
-            canvasFrame.Rotation = rotationDeg
+            canvasFrame.Rotation = 0
 
             local function addMapElement(pos, color, size, isWall, customSize, isKey, isDoor, isCat)
                 local dot
@@ -774,8 +774,16 @@ RunService.RenderStepped:Connect(function()
                 
                 -- Math culling effectively creates a perfect circular mask for small 1x1 cells!
                 if (dx * dx + dz * dz) <= maxRadSq then
+                    local rx = dx * cosT - dz * sinT
+                    local rz = dx * sinT + dz * cosT
+                    
                     dotData.instance.Visible = true
-                    dotData.instance.Position = UDim2.new(0.5, dx * scale, 0.5, dz * scale)
+                    dotData.instance.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
+                    dotData.instance.Rotation = rotationDeg
+                    
+                    -- Dynamically scale wall sizes to prevent thinning/gaps when zoomed
+                    local cellSize = Constants.CellSize
+                    dotData.instance.Size = UDim2.new(0, cellSize * scale, 0, cellSize * scale)
                 else
                     dotData.instance.Visible = false
                 end
@@ -807,6 +815,10 @@ RunService.RenderStepped:Connect(function()
                                 dx = dx * (maxRad / dist)
                                 dz = dz * (maxRad / dist)
                             end
+                            
+                            local rx = dx * cosT - dz * sinT
+                            local rz = dx * sinT + dz * cosT
+                            
                             local cDot = dynamicDotsMap[cat]
                             if not cDot then
                                 cDot = Instance.new("Frame")
@@ -823,8 +835,8 @@ RunService.RenderStepped:Connect(function()
                                 dynamicDotsMap[cat] = cDot
                             end
                             
-                            cDot.Position = UDim2.new(0.5, dx * scale, 0.5, dz * scale)
-                            cDot.Rotation = -rotationDeg
+                            cDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
+                            cDot.Rotation = 0
                             currentObjects[cat] = true
                         end
                     end
@@ -860,6 +872,10 @@ RunService.RenderStepped:Connect(function()
                             dx = dx * (maxRad / dist)
                             dz = dz * (maxRad / dist)
                         end
+                        
+                        local rx = dx * cosT - dz * sinT
+                        local rz = dx * sinT + dz * cosT
+                        
                         local cDot = dynamicDotsMap[key]
                         if not cDot then
                             cDot = Instance.new("Frame")
@@ -876,8 +892,8 @@ RunService.RenderStepped:Connect(function()
                             dynamicDotsMap[key] = cDot
                         end
                         
-                        cDot.Position = UDim2.new(0.5, dx * scale, 0.5, dz * scale)
-                        cDot.Rotation = -rotationDeg
+                        cDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
+                        cDot.Rotation = 0
                         currentObjects[key] = true
                     end
                 end
@@ -891,6 +907,9 @@ RunService.RenderStepped:Connect(function()
                             local dx = primary.Position.X - playerPos.X
                             local dz = primary.Position.Z - playerPos.Z
                             if (dx * dx + dz * dz) <= maxRadSq then
+                                local rx = dx * cosT - dz * sinT
+                                local rz = dx * sinT + dz * cosT
+                                
                                 local isFinal = string.find(obj.Name, "Final")
                                 local cDot = dynamicDotsMap[obj]
                                 if not cDot then
@@ -904,8 +923,8 @@ RunService.RenderStepped:Connect(function()
                                     dynamicDotsMap[obj] = cDot
                                 end
                                 
-                                cDot.Position = UDim2.new(0.5, dx * scale, 0.5, dz * scale)
-                                cDot.Rotation = -rotationDeg
+                                cDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
+                                cDot.Rotation = 0
                                 currentObjects[obj] = true
                             end
                         end

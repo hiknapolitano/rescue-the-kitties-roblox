@@ -24,19 +24,49 @@ function SoundManager.playSound(soundConfig, parent, overrideLoop, maxDistance)
         playbackStart = 0
     end
 
+    local isMusic = false
+    pcall(function()
+        local Shared = ReplicatedStorage:FindFirstChild("Shared")
+        local Constants = Shared and require(Shared:FindFirstChild("Constants"))
+        if Constants and Constants.Sounds and Constants.Sounds.BackgroundMusic then
+            if soundId == Constants.Sounds.BackgroundMusic.SoundId then
+                isMusic = true
+            end
+        end
+    end)
+    
+    local baseVolume = volume
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
     if player then
-        local sfxVol = player:GetAttribute("SFXVolume") or 1
-        if not looped then -- Assume looped sounds are music handled elsewhere (or we should have an explicit flag, but this is a safe heuristic)
-            volume = volume * sfxVol
+        local volMultiplier = 1
+        if isMusic then
+            volMultiplier = player:GetAttribute("MusicVolume") or 1
+        else
+            volMultiplier = player:GetAttribute("SFXVolume") or 1
         end
+        volume = volume * volMultiplier
     end
 
     if soundId == "rbxassetid://0" or soundId == "" or not soundId then return nil end
     
-    local sound = Instance.new("Sound")
-    sound.SoundId = soundId
+    local sound = nil
+    local SoundService = game:GetService("SoundService")
+    local soundCache = SoundService:FindFirstChild("SoundCache")
+    if soundCache then
+        for _, child in ipairs(soundCache:GetChildren()) do
+            if child:IsA("Sound") and child.SoundId == soundId then
+                sound = child:Clone()
+                break
+            end
+        end
+    end
+    
+    if not sound then
+        sound = Instance.new("Sound")
+        sound.SoundId = soundId
+    end
+    
     sound.Parent = parent or workspace
     sound.Looped = looped
     sound.PlaybackSpeed = pitch
@@ -54,7 +84,8 @@ function SoundManager.playSound(soundConfig, parent, overrideLoop, maxDistance)
         end)
     end
     
-    sound:SetAttribute("OriginalVolume", volume)
+    sound:SetAttribute("OriginalVolume", baseVolume)
+    sound:SetAttribute("IsMusic", isMusic)
     sound:SetAttribute("FadeOutDuration", fadeOut)
     
     if fadeIn > 0 then

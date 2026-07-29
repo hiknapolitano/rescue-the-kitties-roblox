@@ -40,7 +40,10 @@ end
 
 -- Initialize caches at startup
 task.spawn(function()
-    task.wait(2)
+    if not workspace:GetAttribute("MazeGenerated") then
+        workspace:GetAttributeChangedSignal("MazeGenerated"):Wait()
+    end
+    task.wait(0.5) -- Give a small window for instances to fully settle
     initCaches()
 end)
 
@@ -445,8 +448,8 @@ local function isMaleAvatar(character)
     if not desc then return true end
     
     local femaleTorsos = {
-        [86500008] = true, -- Woman Torso
-        [86500054] = true, -- Girl Torso
+        [86499666] = true, -- Woman Torso (R15)
+        [48474356] = true, -- ROBLOX Girl Torso (R6)
         [146522365] = true, -- Lindsey Torso
         [146524317] = true, -- Cindy Torso
         [86499905] = true, -- Summer Torso
@@ -983,8 +986,12 @@ local function setupDogAI(dogModel)
 end
 
 local function initDogs()
+    if not workspace:GetAttribute("MazeGenerated") then
+        workspace:GetAttributeChangedSignal("MazeGenerated"):Wait()
+    end
+    task.wait(0.5) -- A short extra wait to ensure all spawn points have fully initialized in Workspace
+    
     local spawnLocations = workspace:WaitForChild("SpawnLocations")
-    task.wait(2)
     
     local spawns = {}
     for _, child in ipairs(spawnLocations:GetChildren()) do

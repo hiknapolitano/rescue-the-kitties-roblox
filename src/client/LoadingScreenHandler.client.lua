@@ -72,23 +72,55 @@ task.spawn(function()
     -- Wait for the server to finish generating the maze before proceeding
     workspace:WaitForChild("MazeElements", math.huge)
 
+    local SoundService = game:GetService("SoundService")
+    local soundCache = SoundService:FindFirstChild("SoundCache")
+    if not soundCache then
+        soundCache = Instance.new("Folder")
+        soundCache.Name = "SoundCache"
+        soundCache.Parent = SoundService
+    end
+
     local assetsToPreload = {
         workspace,
         ReplicatedStorage
     }
     
-    -- Dynamically extract all sounds and images from Constants
-    for _, soundConfig in pairs(Constants.Sounds) do
-        if type(soundConfig) == "table" and soundConfig.SoundId then
-            table.insert(assetsToPreload, soundConfig.SoundId)
+    -- Dynamically extract and instantiate all sounds from Constants
+    for soundName, soundConfig in pairs(Constants.Sounds) do
+        local soundId = nil
+        if type(soundConfig) == "table" then
+            soundId = soundConfig.SoundId
         elseif type(soundConfig) == "string" then
-            table.insert(assetsToPreload, soundConfig)
+            soundId = soundConfig
+        end
+        
+        if soundId and soundId ~= "" and soundId ~= "rbxassetid://0" then
+            local soundInstance = soundCache:FindFirstChild(soundName)
+            if not soundInstance then
+                soundInstance = Instance.new("Sound")
+                soundInstance.Name = soundName
+                soundInstance.SoundId = soundId
+                if type(soundConfig) == "table" then
+                    soundInstance.Volume = soundConfig.Volume or 1
+                    soundInstance.PlaybackSpeed = soundConfig.PlaybackSpeed or 1
+                    soundInstance.Looped = soundConfig.Looped or false
+                end
+                soundInstance.Parent = soundCache
+                
+                -- Force start the download/cache process
+                soundInstance:Play()
+                soundInstance:Stop()
+            end
+            table.insert(assetsToPreload, soundInstance)
         end
     end
     
+    -- Dynamically extract and instantiate all images from Constants
     for _, imageId in pairs(Constants.Images) do
         if type(imageId) == "string" and imageId ~= "" then
-            table.insert(assetsToPreload, imageId)
+            local tempDecal = Instance.new("Decal")
+            tempDecal.Texture = imageId
+            table.insert(assetsToPreload, tempDecal)
         end
     end
     

@@ -4,6 +4,9 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContextActionService = game:GetService("ContextActionService")
 
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
 local player = Players.LocalPlayer
 local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 
@@ -127,11 +130,139 @@ local ACTION_DISMOUNT = "DismountBoatAction"
 local function handleDismount(actionName, inputState, inputObject)
     if actionName == ACTION_DISMOUNT and inputState == Enum.UserInputState.Begin then
         if player:GetAttribute("InBoat") then
-            -- Let's check if there is firm ground nearby to jump off onto.
-            -- A simple raycast forward to see if we can land.
             toggleBoatRemote:FireServer(false) -- False means "Exit"
         end
     end
+end
+
+local function isNearFirmLand()
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    
+    local Maps = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Maps"))
+    local layout = Maps[Constants.ActiveLevel]
+    if not layout then return false end
+    
+    local cellSize = Constants.CellSize
+    local mazeOffset = Constants.MazeOffset or Vector3.new(0, 0, 0)
+    
+    local cellX = math.floor((hrp.Position.X - mazeOffset.X + cellSize/2) / cellSize) + 1
+    local cellZ = math.floor((hrp.Position.Z - mazeOffset.Z + cellSize/2) / cellSize) + 1
+    
+    local maxDist = cellSize * 2.5
+    
+    -- Check a 7x7 grid around the player's current cell
+    for dz = -3, 3 do
+        local z = cellZ + dz
+        local row = layout[z]
+        if row then
+            for dx = -3, 3 do
+                local x = cellX + dx
+                local cellType = row[x]
+                if cellType then
+                    -- Walkable paths (non-wall, non-hazard, non-water)
+                    local isWalkable = (cellType ~= 1 and cellType ~= 24 and cellType ~= 25 and cellType ~= 26 and cellType ~= 28)
+                    if isWalkable then
+                        local px = (x - 1) * cellSize + mazeOffset.X
+                        local pz = (z - 1) * cellSize + mazeOffset.Z
+                        local dist = (Vector3.new(px, 0, pz) - Vector3.new(hrp.Position.X, 0, hrp.Position.Z)).Magnitude
+                        if dist <= maxDist then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+local function bindDismount()
+    ContextActionService:BindAction(ACTION_DISMOUNT, handleDismount, true, Enum.KeyCode.E, Enum.KeyCode.ButtonX)
+    ContextActionService:SetTitle(ACTION_DISMOUNT, "Dismount")
+    
+    -- Create ScreenGui for dismount prompt
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui and not playerGui:FindFirstChild("DismountPromptGui") then
+        local sg = Instance.new("ScreenGui")
+        sg.Name = "DismountPromptGui"
+        sg.ResetOnSpawn = false
+        
+        local tl = Instance.new("TextLabel")
+        tl.Size = UDim2.new(0, 300, 0, 50)
+        tl.Position = UDim2.new(0.5, -150, 0.8, -50)
+        tl.BackgroundTransparency = 0.5
+        tl.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        tl.Text = "Press [E] or (X) to Dismount"
+        tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tl.TextScaled = true
+        tl.Font = Enum.Font.FredokaOne
+        tl.Parent = sg
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 10)
+        corner.Parent = tl
+        
+        sg.Parent = playerGui
+    end
+    
+    -- Position mobile touch button next to the jump button
+    task.spawn(function()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        local touchGui = playerGui and playerGui:WaitForChild("TouchGui", 2)
+        local jumpButton = touchGui and touchGui:WaitForChild("TouchControlFrame", 2):WaitForChild("JumpButton", 2)
+        
+        local button = ContextActionService:GetButton(ACTION_DISMOUNT)
+        if button then
+            if jumpButton then
+                button.Position = UDim2.new(
+                    jumpButton.Position.X.Scale, 
+                    jumpButton.Position.X.Offset - 110, 
+                    jumpButton.Position.Y.Scale, 
+                    jumpButton.Position.Y.Offset
+                )
+            else
+                -- Fallback position on mobile if jump button isn't resolved
+                button.Position = UDim2.new(1, -250, 1, -120)
+            end
+        end
+    end)
+end
+
+local function unbindDismount()
+    ContextActionService:UnbindAction(ACTION_DISMOUNT)
+    
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local dismountGui = playerGui:FindFirstChild("DismountPromptGui")
+        if dismountGui then
+            dismountGui:Destroy()
+        end
+    end
+end
+
+local loopThread = nil
+local function startLandCheckLoop()
+    if loopThread then return end
+    
+    loopThread = task.spawn(function()
+        local nearLand = false
+        while player:GetAttribute("InBoat") do
+            local isNear = isNearFirmLand()
+            if isNear ~= nearLand then
+                nearLand = isNear
+                if nearLand then
+                    bindDismount()
+                else
+                    unbindDismount()
+                end
+            end
+            task.wait(0.1)
+        end
+        loopThread = nil
+    end)
 end
 
 player:GetAttributeChangedSignal("InBoat"):Connect(function()
@@ -139,34 +270,7 @@ player:GetAttributeChangedSignal("InBoat"):Connect(function()
     local humanoid = char and char:FindFirstChild("Humanoid")
     
     if player:GetAttribute("InBoat") then
-        -- Bind dismount
-        ContextActionService:BindAction(ACTION_DISMOUNT, handleDismount, true, Enum.KeyCode.E, Enum.KeyCode.ButtonX)
-        ContextActionService:SetTitle(ACTION_DISMOUNT, "Dismount Boat")
-        
-        -- Create a screen GUI for the dismount prompt
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if playerGui and not playerGui:FindFirstChild("DismountPromptGui") then
-            local sg = Instance.new("ScreenGui")
-            sg.Name = "DismountPromptGui"
-            sg.ResetOnSpawn = false
-            
-            local tl = Instance.new("TextLabel")
-            tl.Size = UDim2.new(0, 300, 0, 50)
-            tl.Position = UDim2.new(0.5, -150, 0.8, -50)
-            tl.BackgroundTransparency = 0.5
-            tl.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            tl.Text = "Press [E] or (X) to Dismount"
-            tl.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tl.TextScaled = true
-            tl.Font = Enum.Font.FredokaOne
-            tl.Parent = sg
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 10)
-            corner.Parent = tl
-            
-            sg.Parent = playerGui
-        end
+        startLandCheckLoop()
         
         -- Disable Jump
         ContextActionService:BindAction("DisableJumpInBoat", function() return Enum.ContextActionResult.Sink end, false, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
@@ -175,16 +279,7 @@ player:GetAttributeChangedSignal("InBoat"):Connect(function()
             humanoid.JumpPower = 0
         end
     else
-        -- Unbind dismount
-        ContextActionService:UnbindAction(ACTION_DISMOUNT)
-        
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if playerGui then
-            local dismountGui = playerGui:FindFirstChild("DismountPromptGui")
-            if dismountGui then
-                dismountGui:Destroy()
-            end
-        end
+        unbindDismount()
         
         -- Enable Jump
         ContextActionService:UnbindAction("DisableJumpInBoat")

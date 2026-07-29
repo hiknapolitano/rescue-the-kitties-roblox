@@ -38,7 +38,7 @@ task.spawn(function()
                 model.Name = username
                 for _, p in ipairs(model:GetDescendants()) do
                     if p:IsA("BasePart") then
-                        p.Anchored = true
+                        p.Anchored = false -- Keep unanchored to preserve joint positioning
                         p.CanCollide = false
                     end
                 end
@@ -59,7 +59,7 @@ local ShopItems = {
     { id = "Shield", name = "Shield", price = 5, desc = "Survive one dog attack." },
     { id = "Bone", name = "Bone", price = 5, desc = "Throw to distract the closest dog." },
     { id = "FlashlightUpgrade", name = "Flashlight Upgrade", price = 10, desc = "A miner's helmet with an infinite light. Replaces your handheld flashlight." },
-    { id = "Minimap", name = "Minimap", price = 40, desc = "See the maze and remaining cats." },
+    { id = "Minimap", name = "Minimap", price = 18, desc = "See the maze and remaining cats." },
     { id = "Bandage", name = "Bandage", price = 7, desc = "Heal yourself from hazard damage." }
 }
 
@@ -157,12 +157,22 @@ task.spawn(function()
                         end
                     end
                     
-                    -- Anchor everything before parenting
+                    -- Anchor only HumanoidRootPart to let joints position the limbs/head correctly
                     for _, part in ipairs(customAvatar:GetDescendants()) do
                         if part:IsA("BasePart") then
-                            part.Anchored = true
                             part.CanCollide = false
+                            if part.Name == "HumanoidRootPart" then
+                                part.Anchored = true
+                            else
+                                part.Anchored = false
+                            end
                         end
+                    end
+                    
+                    local humanoid = customAvatar:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid.PlatformStand = true
+                        humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
                     end
                     
                     -- Place avatar so its HumanoidRootPart matches the dummy's

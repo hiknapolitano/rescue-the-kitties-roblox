@@ -260,8 +260,22 @@ toggleBoatRemote.OnServerEvent:Connect(function(player, enter, targetPos)
         end
         
         if targetPos then
-            clearBoat(player)
+            local hum = character:FindFirstChild("Humanoid")
+            if hum then
+                hum.Sit = false
+            end
             hrp.CFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.rad(hrp.Orientation.Y), 0)
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            
+            task.wait(0.1) -- Wait for Roblox's internal unsit/exit physics to process
+            
+            if character.Parent and hrp.Parent then
+                hrp.CFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.rad(hrp.Orientation.Y), 0)
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                clearBoat(player)
+            end
         else
             local remote = remotesFolder:FindFirstChild("SendNotification")
             if remote then
