@@ -150,6 +150,13 @@ task.spawn(function()
                     local r6HRP = r6:FindFirstChild("HumanoidRootPart")
                     local r6Pivot = r6:GetPivot()
                     
+                    -- Reset Motor6D transforms to prevent detached heads/limbs when anchoring
+                    for _, m in ipairs(customAvatar:GetDescendants()) do
+                        if m:IsA("Motor6D") then
+                            m.Transform = CFrame.new()
+                        end
+                    end
+                    
                     -- Anchor everything before parenting
                     for _, part in ipairs(customAvatar:GetDescendants()) do
                         if part:IsA("BasePart") then

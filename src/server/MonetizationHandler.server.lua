@@ -33,8 +33,9 @@ local function findNearestSafePos(position)
     for z, row in ipairs(layout) do
         for x, cellType in ipairs(row) do
             if cellType == 0 then
-                local px = (x - 1) * cellSize
-                local pz = (z - 1) * cellSize
+                local mazeOffset = Constants.MazeOffset or Vector3.new(0, 0, 0)
+                local px = (x - 1) * cellSize + mazeOffset.X
+                local pz = (z - 1) * cellSize + mazeOffset.Z
                 
                 local testPos = Vector3.new(px, 0, pz)
                 local dist = (testPos - Vector3.new(position.X, 0, position.Z)).Magnitude

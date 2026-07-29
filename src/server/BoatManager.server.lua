@@ -243,8 +243,9 @@ toggleBoatRemote.OnServerEvent:Connect(function(player, enter, targetPos)
                     -- Walkable paths are any cells that are NOT walls or hazards or water
                     local isWalkable = (cellType ~= 1 and cellType ~= 24 and cellType ~= 25 and cellType ~= 26 and cellType ~= 28)
                     if isWalkable then
-                        local px = (x - 1) * cellSize
-                        local pz = (z - 1) * cellSize
+                        local mazeOffset = Constants.MazeOffset or Vector3.new(0, 0, 0)
+                        local px = (x - 1) * cellSize + mazeOffset.X
+                        local pz = (z - 1) * cellSize + mazeOffset.Z
                         
                         local testPos = Vector3.new(px, 0, pz)
                         local dist = (testPos - Vector3.new(hrp.Position.X, 0, hrp.Position.Z)).Magnitude

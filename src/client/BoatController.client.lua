@@ -143,6 +143,31 @@ player:GetAttributeChangedSignal("InBoat"):Connect(function()
         ContextActionService:BindAction(ACTION_DISMOUNT, handleDismount, true, Enum.KeyCode.E, Enum.KeyCode.ButtonX)
         ContextActionService:SetTitle(ACTION_DISMOUNT, "Dismount Boat")
         
+        -- Create a screen GUI for the dismount prompt
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui and not playerGui:FindFirstChild("DismountPromptGui") then
+            local sg = Instance.new("ScreenGui")
+            sg.Name = "DismountPromptGui"
+            sg.ResetOnSpawn = false
+            
+            local tl = Instance.new("TextLabel")
+            tl.Size = UDim2.new(0, 300, 0, 50)
+            tl.Position = UDim2.new(0.5, -150, 0.8, -50)
+            tl.BackgroundTransparency = 0.5
+            tl.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            tl.Text = "Press [E] or (X) to Dismount"
+            tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            tl.TextScaled = true
+            tl.Font = Enum.Font.FredokaOne
+            tl.Parent = sg
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 10)
+            corner.Parent = tl
+            
+            sg.Parent = playerGui
+        end
+        
         -- Disable Jump
         ContextActionService:BindAction("DisableJumpInBoat", function() return Enum.ContextActionResult.Sink end, false, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
         if humanoid then
@@ -152,6 +177,14 @@ player:GetAttributeChangedSignal("InBoat"):Connect(function()
     else
         -- Unbind dismount
         ContextActionService:UnbindAction(ACTION_DISMOUNT)
+        
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            local dismountGui = playerGui:FindFirstChild("DismountPromptGui")
+            if dismountGui then
+                dismountGui:Destroy()
+            end
+        end
         
         -- Enable Jump
         ContextActionService:UnbindAction("DisableJumpInBoat")

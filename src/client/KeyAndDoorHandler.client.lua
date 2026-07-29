@@ -119,6 +119,17 @@ local function updateDoors()
             end
         end
     end
+    
+    if player:GetAttribute("HasGreenKey") == true then
+        local finalDoor = doorsFolder:FindFirstChild("FinalDoor")
+        if finalDoor then
+            for _, desc in ipairs(finalDoor:GetDescendants()) do
+                if desc:IsA("BillboardGui") and desc.Name == "CatCounterGui" then
+                    desc.Enabled = true
+                end
+            end
+        end
+    end
 end
 
 -- Update whenever a key attribute or cats rescued changes
