@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared:WaitForChild("Constants"))
 local SoundManager = require(Shared:WaitForChild("SoundManager"))
@@ -17,6 +18,9 @@ if oldHud then oldHud:Destroy() end
 
 local TweenService = game:GetService("TweenService")
 local bgmInstance = SoundManager.playSound(Constants.Sounds.BackgroundMusic, playerGui, true)
+if bgmInstance then
+    bgmInstance.Name = "BackgroundMusic"
+end
 local bgmMuted = false
 
 player:SetAttribute("MusicVolume", 1)
@@ -192,7 +196,8 @@ local bottomRightPanel = Instance.new("Frame")
 bottomRightPanel.Name = "BottomRightPanel"
 bottomRightPanel.Size = UDim2.new(0, 300, 0, 150)
 bottomRightPanel.AnchorPoint = Vector2.new(1, 1)
-bottomRightPanel.Position = UDim2.new(1, -20, 1, -20)
+local isMobile = UserInputService.TouchEnabled
+bottomRightPanel.Position = UDim2.new(1, -20, 1, isMobile and -140 or -20)
 bottomRightPanel.BackgroundTransparency = 1
 bottomRightPanel.Parent = screenGui
 
@@ -503,7 +508,7 @@ RunService.RenderStepped:Connect(function()
             bUic.Parent = borderOverlay
 
             local mapStroke = Instance.new("UIStroke")
-            mapStroke.Color = Color3.fromRGB(100, 200, 255)
+            mapStroke.Color = Constants.MinimapColors and Constants.MinimapColors.Circle or Color3.fromRGB(255, 255, 255)
             mapStroke.Thickness = 2.5
             mapStroke.Parent = borderOverlay
             borderOverlay.Parent = mmFrame
@@ -792,6 +797,50 @@ RunService.RenderStepped:Connect(function()
             -- We will track which objects are visible this frame to cleanup old dots
             local currentObjects = {}
 
+            -- Draw other players on the minimap
+            for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character then
+                    local primary = otherPlayer.Character.PrimaryPart or otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if primary then
+                        local dx = primary.Position.X - playerPos.X
+                        local dz = primary.Position.Z - playerPos.Z
+                        
+                        local distSq = dx * dx + dz * dz
+                        if distSq > maxRadSq then
+                            local dist = math.sqrt(distSq)
+                            local maxRad = math.sqrt(maxRadSq)
+                            dx = dx * (maxRad / dist)
+                            dz = dz * (maxRad / dist)
+                        end
+                        
+                        local rx = dx * cosT - dz * sinT
+                        local rz = dx * sinT + dz * cosT
+                        
+                        local pDot = dynamicDotsMap[otherPlayer]
+                        if not pDot then
+                            pDot = Instance.new("Frame")
+                            pDot.Size = UDim2.new(0, 8, 0, 8)
+                            pDot.AnchorPoint = Vector2.new(0.5, 0.5)
+                            pDot.BackgroundColor3 = Constants.MinimapColors and Constants.MinimapColors.OtherPlayer or Color3.fromRGB(0, 120, 255)
+                            pDot.BorderSizePixel = 1
+                            pDot.BorderColor3 = Color3.new(0, 0, 0)
+                            
+                            local corner = Instance.new("UICorner")
+                            corner.CornerRadius = UDim.new(1, 0)
+                            corner.Parent = pDot
+                            
+                            pDot.ZIndex = 11
+                            pDot.Parent = canvasFrame
+                            dynamicDotsMap[otherPlayer] = pDot
+                        end
+                        
+                        pDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
+                        pDot.Rotation = 0
+                        currentObjects[otherPlayer] = true
+                    end
+                end
+            end
+
             -- Draw Cats on minimap
             if cachedCatsFolder then
                 local collectedKey = "CollectedBy_" .. player.UserId
@@ -906,27 +955,60 @@ RunService.RenderStepped:Connect(function()
                         if primary and primary:IsA("BasePart") then
                             local dx = primary.Position.X - playerPos.X
                             local dz = primary.Position.Z - playerPos.Z
-                            if (dx * dx + dz * dz) <= maxRadSq then
-                                local rx = dx * cosT - dz * sinT
-                                local rz = dx * sinT + dz * cosT
-                                
-                                local isFinal = string.find(obj.Name, "Final")
-                                local cDot = dynamicDotsMap[obj]
-                                if not cDot then
-                                    cDot = Instance.new("Frame")
-                                    cDot.Size = UDim2.new(0, 6, 0, 6)
-                                    cDot.AnchorPoint = Vector2.new(0.5, 0.5)
-                                    cDot.BackgroundColor3 = isFinal and Color3.fromRGB(142, 0, 88) or (primary and primary.Color or Color3.fromRGB(200, 200, 200))
-                                    cDot.BorderSizePixel = 0
-                                    cDot.ZIndex = 5
-                                    cDot.Parent = canvasFrame
-                                    dynamicDotsMap[obj] = cDot
-                                end
-                                
-                                cDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
-                                cDot.Rotation = 0
-                                currentObjects[obj] = true
+                            
+                            local distSq = dx * dx + dz * dz
+                            if distSq > maxRadSq then
+                                local dist = math.sqrt(distSq)
+                                local maxRad = math.sqrt(maxRadSq)
+                                dx = dx * (maxRad / dist)
+                                dz = dz * (maxRad / dist)
                             end
+                            
+                            local rx = dx * cosT - dz * sinT
+                            local rz = dx * sinT + dz * cosT
+                            
+                            local isFinal = string.find(obj.Name, "Final")
+                            local cDot = dynamicDotsMap[obj]
+                            if not cDot then
+                                cDot = Instance.new("Frame")
+                                cDot.Size = UDim2.new(0, 8, 0, 8)
+                                cDot.AnchorPoint = Vector2.new(0.5, 0.5)
+                                cDot.BorderSizePixel = 1
+                                cDot.BorderColor3 = Color3.new(0, 0, 0)
+                                
+                                local corner = Instance.new("UICorner")
+                                corner.CornerRadius = UDim.new(1, 0)
+                                corner.Parent = cDot
+                                
+                                cDot.ZIndex = 9
+                                cDot.Parent = canvasFrame
+                                dynamicDotsMap[obj] = cDot
+                            end
+                            
+                            -- Determine if this door/portal is unlocked
+                            local colorName = nil
+                            local colorNamesList = {"Blue", "Yellow", "Red", "Purple", "Green"}
+                            for _, c in ipairs(colorNamesList) do
+                                if string.find(obj.Name, c) then
+                                    colorName = c
+                                    break
+                                end
+                            end
+                            
+                            local isUnlocked = false
+                            if colorName then
+                                isUnlocked = player:GetAttribute("Has" .. colorName .. "Key") == true
+                            elseif isFinal then
+                                local catsRescued = player:GetAttribute("CatsRescued") or 0
+                                isUnlocked = catsRescued >= Constants.TotalCats
+                            end
+                            
+                            local baseColor = isFinal and Color3.fromRGB(142, 0, 88) or (primary and primary.Color or Color3.fromRGB(200, 200, 200))
+                            cDot.BackgroundColor3 = isUnlocked and Color3.fromRGB(0, 255, 100) or baseColor
+                            
+                            cDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
+                            cDot.Rotation = 0
+                            currentObjects[obj] = true
                         end
                     end
                 end
@@ -1054,7 +1136,7 @@ end
 -- HUD Keys Container
 local keysContainer = Instance.new("Frame")
 keysContainer.Name = "HUDKeysContainer"
-keysContainer.Size = UDim2.new(0, 250, 0, 80)
+keysContainer.Size = UDim2.new(0, 250, 0, 50)
 keysContainer.BackgroundTransparency = 1
 keysContainer.Parent = bottomRightPanel
 
@@ -1062,7 +1144,7 @@ local kcLayout = Instance.new("UIListLayout")
 kcLayout.FillDirection = Enum.FillDirection.Horizontal
 kcLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 kcLayout.SortOrder = Enum.SortOrder.LayoutOrder
-kcLayout.Padding = UDim.new(0, -15)
+kcLayout.Padding = UDim.new(0, -12)
 kcLayout.Parent = keysContainer
 
 
@@ -1087,7 +1169,7 @@ local function updateKeychainUI()
             count = count + 1
             if keyTemplate then
                 local vpf = Instance.new("ViewportFrame")
-                vpf.Size = UDim2.new(0, 80, 0, 80)
+                vpf.Size = UDim2.new(0, 50, 0, 50)
                 vpf.BackgroundTransparency = 1
                 
                 local camera = Instance.new("Camera")

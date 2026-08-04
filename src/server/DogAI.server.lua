@@ -468,6 +468,39 @@ local function isPlayerSafe(character)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then return true end
     
+    -- Check if they are touching any climbable Truss or TrussPart
+    local isTouchingClimbable = false
+    local overlapParams = OverlapParams.new()
+    overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+    overlapParams.FilterDescendantsInstances = {character}
+    
+    local hrpOverlaps = workspace:GetPartsInPart(hrp, overlapParams)
+    for _, part in ipairs(hrpOverlaps) do
+        if part:IsA("TrussPart") or part.Name == "Truss" then
+            isTouchingClimbable = true
+            break
+        end
+    end
+    
+    if not isTouchingClimbable then
+        for _, limb in ipairs(character:GetChildren()) do
+            if limb:IsA("BasePart") and limb.Name ~= "HumanoidRootPart" then
+                local limbOverlaps = workspace:GetPartsInPart(limb, overlapParams)
+                for _, part in ipairs(limbOverlaps) do
+                    if part:IsA("TrussPart") or part.Name == "Truss" then
+                        isTouchingClimbable = true
+                        break
+                    end
+                end
+            end
+            if isTouchingClimbable then break end
+        end
+    end
+    
+    if isTouchingClimbable then
+        return true
+    end
+    
     -- Also keep the height check just in case they are standing on the platform at the top
     -- Trees are tall, so being above ~12 studs is enough to be safe
     if hrp.Position.Y > (Constants.WallHeight * 0.3) then
@@ -515,6 +548,7 @@ local function getNearestVisiblePlayer(dogModel)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.FilterDescendantsInstances = {dogModel}
+    raycastParams.CollisionGroup = "Dogs"
     
     for _, player in ipairs(Players:GetPlayers()) do
         local char = player.Character
@@ -577,10 +611,16 @@ local function setupDogAI(dogModel)
     local path = PathfindingService:CreatePath(pathParams)
     local humanoid = dogModel:WaitForChild("Humanoid")
     local rootPart = dogModel:WaitForChild("HumanoidRootPart")
+    dogModel:SetAttribute("PatrolCenter", rootPart.Position)
     
     local isChasing = false
     local chaseSound = nil
     local wanderRoutine = nil
+    
+    local isSearching = false
+    local searchTimer = 0
+    local lastSeenPosition = nil
+    local searchWanderPoint = nil
     
     local footstepSound = SoundManager.playSound(Constants.Sounds.DogFootsteps, rootPart, true, 80)
     if footstepSound then
@@ -703,15 +743,27 @@ local function setupDogAI(dogModel)
     wanderRayParams.FilterDescendantsInstances = {dogModel}
     
     local function getValidWanderPoint()
+        local patrolCenter = dogModel:GetAttribute("PatrolCenter") or rootPart.Position
+        local patrolRadius = Constants.DogPatrolRadius or 75
+        
         local mazeElements = workspace:FindFirstChild("MazeElements")
         local floor = mazeElements and mazeElements:FindFirstChild("Floor")
-        if not floor then return rootPart.Position + Vector3.new(math.random(-20, 20), 0, math.random(-20, 20)) end
+        if not floor then return patrolCenter + Vector3.new(math.random(-20, 20), 0, math.random(-20, 20)) end
         
         -- Pick points biased toward a moderate range from current position for natural roaming
         for i = 1, 20 do
-            local rx = (math.random() - 0.5) * floor.Size.X
-            local rz = (math.random() - 0.5) * floor.Size.Z
-            local testPos = floor.Position + Vector3.new(rx, 20, rz)
+            local angle = math.random() * math.pi * 2
+            local distance = 10 + math.random() * (patrolRadius - 10)
+            local testX = patrolCenter.X + math.cos(angle) * distance
+            local testZ = patrolCenter.Z + math.sin(angle) * distance
+            
+            -- Ensure testX and testZ are inside the floor boundaries
+            local halfX = floor.Size.X / 2
+            local halfZ = floor.Size.Z / 2
+            testX = math.clamp(testX, floor.Position.X - halfX + 5, floor.Position.X + halfX - 5)
+            testZ = math.clamp(testZ, floor.Position.Z - halfZ + 5, floor.Position.Z + halfZ - 5)
+            
+            local testPos = Vector3.new(testX, 20, testZ)
             
             -- Prefer points 20-60 studs away for more natural patrol distances
             local flatDist = (Vector3.new(testPos.X, 0, testPos.Z) - Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z)).Magnitude
@@ -747,18 +799,26 @@ local function setupDogAI(dogModel)
             end
         end
         
-        -- Fallback: try any point on the floor
+        -- Fallback: try any point on the floor within patrol radius
         for i = 1, 10 do
-            local rx = (math.random() - 0.5) * floor.Size.X
-            local rz = (math.random() - 0.5) * floor.Size.Z
-            local testPos = floor.Position + Vector3.new(rx, 20, rz)
+            local angle = math.random() * math.pi * 2
+            local distance = math.random() * patrolRadius
+            local testX = patrolCenter.X + math.cos(angle) * distance
+            local testZ = patrolCenter.Z + math.sin(angle) * distance
+            
+            local halfX = floor.Size.X / 2
+            local halfZ = floor.Size.Z / 2
+            testX = math.clamp(testX, floor.Position.X - halfX + 5, floor.Position.X + halfX - 5)
+            testZ = math.clamp(testZ, floor.Position.Z - halfZ + 5, floor.Position.Z + halfZ - 5)
+            
+            local testPos = Vector3.new(testX, 20, testZ)
             local hitInfo = workspace:Raycast(testPos, Vector3.new(0, -30, 0), wanderRayParams)
             if hitInfo and hitInfo.Instance == floor then
                 return hitInfo.Position
             end
         end
         
-        return rootPart.Position + Vector3.new(math.random(-20, 20), 0, math.random(-20, 20))
+        return patrolCenter
     end
     
     local function startWandering()
@@ -888,40 +948,43 @@ local function setupDogAI(dogModel)
             local targetChar = getNearestVisiblePlayer(dogModel)
             
             if targetChar then
+                isSearching = false
+                searchTimer = 0
+                
                 stopWandering()
                 isChasing = true
-                    local p = Players:GetPlayerFromCharacter(targetChar)
-                    if p then
-                        local currentChasing = dogModel:GetAttribute("ChasingPlayer")
-                        if currentChasing ~= p.Name then
-                            -- Decrement old target if switching
-                            if currentChasing then
-                                local oldP = Players:FindFirstChild(currentChasing)
-                                if oldP then
-                                    local oldCount = oldP:GetAttribute("DogChasingCount") or 0
-                                    if oldCount > 0 then
-                                        oldCount = oldCount - 1
-                                        oldP:SetAttribute("DogChasingCount", oldCount)
-                                        if oldCount <= 0 then
-                                            oldP:SetAttribute("DogChasing", false)
-                                        end
+                local p = Players:GetPlayerFromCharacter(targetChar)
+                if p then
+                    local currentChasing = dogModel:GetAttribute("ChasingPlayer")
+                    if currentChasing ~= p.Name then
+                        -- Decrement old target if switching
+                        if currentChasing then
+                            local oldP = Players:FindFirstChild(currentChasing)
+                            if oldP then
+                                local oldCount = oldP:GetAttribute("DogChasingCount") or 0
+                                if oldCount > 0 then
+                                    oldCount = oldCount - 1
+                                    oldP:SetAttribute("DogChasingCount", oldCount)
+                                    if oldCount <= 0 then
+                                        oldP:SetAttribute("DogChasing", false)
                                     end
                                 end
                             end
-                            
-                            dogModel:SetAttribute("ChasingPlayer", p.Name)
-                            local chaseCount = p:GetAttribute("DogChasingCount") or 0
-                            p:SetAttribute("DogChasingCount", chaseCount + 1)
-                            if chaseCount == 0 then
-                                p:SetAttribute("DogChasing", true)
-                            end
+                        end
+                        
+                        dogModel:SetAttribute("ChasingPlayer", p.Name)
+                        local chaseCount = p:GetAttribute("DogChasingCount") or 0
+                        p:SetAttribute("DogChasingCount", chaseCount + 1)
+                        if chaseCount == 0 then
+                            p:SetAttribute("DogChasing", true)
                         end
                     end
-                    
-                    if not chaseSound then
-                        chaseSound = SoundManager.playSound(Constants.Sounds.DogChasing, rootPart, true, 80)
-                    end
-                    
+                end
+                
+                if not chaseSound then
+                    chaseSound = SoundManager.playSound(Constants.Sounds.DogChasing, rootPart, true, 80)
+                end
+                
                 local speed = Constants.DogChaseSpeed
                 if workspace:GetAttribute("TrollEffectActive") then
                     speed = speed * 1.3
@@ -944,6 +1007,7 @@ local function setupDogAI(dogModel)
                     local raycastParams = RaycastParams.new()
                     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
                     raycastParams.FilterDescendantsInstances = {targetChar, dogModel}
+                    raycastParams.CollisionGroup = "Dogs"
                     
                     local rayResult = workspace:Raycast(targetPos, rawPredictedPos - targetPos, raycastParams)
                     if rayResult then
@@ -954,32 +1018,59 @@ local function setupDogAI(dogModel)
                     end
                 end
                 
+                lastSeenPosition = predictedPos
                 humanoid:MoveTo(predictedPos)
             else
                 if isChasing then
                     isChasing = false
-                    stopChasingSound()
+                    isSearching = true
+                    searchTimer = tick()
+                    searchWanderPoint = nil
                     
-                    local chasingPlayerName = dogModel:GetAttribute("ChasingPlayer")
-                    if chasingPlayerName then
-                        local p = Players:FindFirstChild(chasingPlayerName)
-                        if p then
-                            local chaseCount = p:GetAttribute("DogChasingCount") or 0
-                            if chaseCount > 0 then
-                                chaseCount = chaseCount - 1
-                                p:SetAttribute("DogChasingCount", chaseCount)
-                                if chaseCount <= 0 then
-                                    p:SetAttribute("DogChasing", false)
-                                end
+                    humanoid.WalkSpeed = Constants.DogSpeed * 1.2
+                    if lastSeenPosition then
+                        humanoid:MoveTo(lastSeenPosition)
+                    end
+                elseif isSearching then
+                    local timeInSearch = tick() - searchTimer
+                    local searchDelay = Constants.DogLostChaseSearchDuration or 4.0
+                    
+                    if timeInSearch < searchDelay then
+                        local distToLastSeen = lastSeenPosition and (rootPart.Position - lastSeenPosition).Magnitude or 0
+                        if distToLastSeen < 4 or not searchWanderPoint then
+                            if not searchWanderPoint or (rootPart.Position - searchWanderPoint).Magnitude < 4 then
+                                local rx = (math.random() - 0.5) * 16
+                                local rz = (math.random() - 0.5) * 16
+                                searchWanderPoint = (lastSeenPosition or rootPart.Position) + Vector3.new(rx, 0, rz)
+                                humanoid:MoveTo(searchWanderPoint)
                             end
                         end
-                        dogModel:SetAttribute("ChasingPlayer", nil)
+                    else
+                        isSearching = false
+                        stopChasingSound()
+                        
+                        local chasingPlayerName = dogModel:GetAttribute("ChasingPlayer")
+                        if chasingPlayerName then
+                            local p = Players:FindFirstChild(chasingPlayerName)
+                            if p then
+                                local chaseCount = p:GetAttribute("DogChasingCount") or 0
+                                if chaseCount > 0 then
+                                    chaseCount = chaseCount - 1
+                                    p:SetAttribute("DogChasingCount", chaseCount)
+                                    if chaseCount <= 0 then
+                                        p:SetAttribute("DogChasing", false)
+                                    end
+                                end
+                            end
+                            dogModel:SetAttribute("ChasingPlayer", nil)
+                        end
+                        
+                        humanoid.WalkSpeed = Constants.DogSpeed
+                        startWandering()
                     end
-                    
-                    humanoid.WalkSpeed = Constants.DogSpeed
+                else
+                    startWandering()
                 end
-                
-                startWandering()
             end
         end
     end)

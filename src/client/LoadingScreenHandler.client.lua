@@ -10,6 +10,9 @@ local Constants = require(Shared:WaitForChild("Constants"))
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Force landscape mode on mobile/tablets immediately on startup
+playerGui.ScreenOrientation = Enum.ScreenOrientation.LandscapeSensor
+
 -- Build the loading screen FIRST before anything else
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "LoadingScreen"
@@ -106,11 +109,8 @@ task.spawn(function()
                     soundInstance.Looped = soundConfig.Looped or false
                 end
                 soundInstance.Parent = soundCache
-                
-                -- Force start the download/cache process
-                soundInstance:Play()
-                soundInstance:Stop()
             end
+
             table.insert(assetsToPreload, soundInstance)
         end
     end
@@ -170,7 +170,12 @@ task.spawn(function()
                 local extent = math.max(maxX - minX, maxZ - minZ)
                 
                 -- Sweep camera to 4 corners + center to force lighting bake
+                -- We also target the Base floor center directly first, so base lights are fully compiled/ready when spawning.
+                local baseLoc = workspace:FindFirstChild("SpawnLocation")
+                local basePos = baseLoc and (baseLoc.Position + (Constants.MazeOffset or Vector3.new(0, 0, 0))) or (Constants.MazeOffset or Vector3.new(2000, 0, 2000))
+                
                 local sweepPositions = {
+                    Vector3.new(basePos.X, 35, basePos.Z), -- Look directly down at Base center
                     Vector3.new(centerX, 80, centerZ),
                     Vector3.new(minX, 80, minZ),
                     Vector3.new(maxX, 80, minZ),
@@ -195,7 +200,7 @@ task.spawn(function()
     
     -- Final lighting bake settle time
     loadingText.Text = "Finalizing..."
-    task.wait(3)
+    task.wait(6)
     
     task.cancel(dotAnim)
     loadingText.Text = "Welcome!"

@@ -27,6 +27,15 @@ playSoundRemote.OnClientEvent:Connect(function(soundName, pitchOverride)
         return
     end
     
+    -- Dynamically apply gender-specific voice pitch for standard "Damage" sound if not explicitly overridden
+    if soundName == "Damage" and not pitchOverride then
+        local isMale = player:GetAttribute("IsMale")
+        if isMale == nil then isMale = true end -- default to male pitch fallback
+        if isMale then
+            pitchOverride = Constants.MaleDamageSoundPitch or 0.75
+        end
+    end
+    
     if pitchOverride then
         if type(soundConfig) == "table" then
             soundConfig = table.clone(soundConfig)
@@ -40,7 +49,9 @@ playSoundRemote.OnClientEvent:Connect(function(soundName, pitchOverride)
 end)
 
 -- Active Sound Volume Tracking System
-local activeSounds = {}
+local activeSounds = setmetatable({}, {__mode = "k"})
+local lastClientVolume = setmetatable({}, {__mode = "k"})
+local lastClientOriginalVolume = setmetatable({}, {__mode = "k"})
 local isUpdatingVolume = {}
 
 local function updateSoundVolume(sound)
@@ -50,19 +61,15 @@ local function updateSoundVolume(sound)
     local originalVolume = sound:GetAttribute("OriginalVolume")
     if not originalVolume then
         originalVolume = sound.Volume
+        lastClientOriginalVolume[sound] = originalVolume
         sound:SetAttribute("OriginalVolume", originalVolume)
     end
     
-    local isMusic = sound:GetAttribute("IsMusic") or (sound.Name == "BackgroundMusic")
-    local volumeMultiplier = 1
+    local volumeMultiplier = player:GetAttribute("SFXVolume") or 1
     
-    if isMusic then
-        volumeMultiplier = player:GetAttribute("MusicVolume") or 1
-    else
-        volumeMultiplier = player:GetAttribute("SFXVolume") or 1
-    end
-    
-    sound.Volume = originalVolume * volumeMultiplier
+    local targetVolume = originalVolume * volumeMultiplier
+    lastClientVolume[sound] = targetVolume
+    sound.Volume = targetVolume
     isUpdatingVolume[sound] = nil
 end
 
@@ -70,17 +77,29 @@ local function registerSound(sound)
     if not sound:IsA("Sound") then return end
     if activeSounds[sound] then return end
     
+    local isMusic = sound:GetAttribute("IsMusic") or (sound.Name == "BackgroundMusic")
+    if isMusic then
+        -- Completely ignore music sounds; they are managed separately by HUDController / music manager
+        return
+    end
+    
     activeSounds[sound] = true
     updateSoundVolume(sound)
     
     -- Listen for attribute changes or destruction
     local connection
     connection = sound:GetAttributeChangedSignal("OriginalVolume"):Connect(function()
-        if sound.Parent then
-            updateSoundVolume(sound)
-        else
+        if not sound.Parent then
             connection:Disconnect()
+            return
         end
+        
+        local current = sound:GetAttribute("OriginalVolume")
+        if lastClientOriginalVolume[sound] == current then
+            return
+        end
+        
+        updateSoundVolume(sound)
     end)
     
     -- Listen for property changes (like server-side volume changes/tweens/footstep scaling)
@@ -91,16 +110,22 @@ local function registerSound(sound)
             return
         end
         
+        if lastClientVolume[sound] == sound.Volume then
+            return
+        end
+        
         -- If the volume change was NOT initiated by the client's own scaling code,
         -- it must be a replicated change from the server. Update the base volume.
-        if not isUpdatingVolume[sound] then
-            sound:SetAttribute("OriginalVolume", sound.Volume)
-            updateSoundVolume(sound)
-        end
+        local newOriginalVolume = sound.Volume
+        lastClientOriginalVolume[sound] = newOriginalVolume
+        sound:SetAttribute("OriginalVolume", newOriginalVolume)
+        updateSoundVolume(sound)
     end)
     
     sound.Destroying:Connect(function()
         activeSounds[sound] = nil
+        lastClientVolume[sound] = nil
+        lastClientOriginalVolume[sound] = nil
         if connection then connection:Disconnect() end
         if volumePropConnection then volumePropConnection:Disconnect() end
     end)

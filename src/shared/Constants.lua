@@ -62,10 +62,10 @@ local Constants = {
     DogDamage = 34,
     LavaDamage = 50,
     
-    StarTime5 = 380,
-    StarTime4 = 420,
-    StarTime3 = 460,
-    StarTime2 = 580,
+    StarTime5 = 500,
+    StarTime4 = 650,
+    StarTime3 = 750,
+    StarTime2 = 850,
     
     -- Game logic
     GroupId = 738544426, -- Replace with your actual Roblox Group ID for the discount
@@ -108,9 +108,9 @@ local Constants = {
     FlashlightUpgrade = { Brightness = 4.0, Range = 90.0 },
     
     -- Lighting Settings
-    Ambient = Color3.fromRGB(104, 104, 104),
+    Ambient = Color3.fromRGB(84, 84, 84),
     OutdoorAmbient = Color3.fromRGB(20, 20, 40),
-    Brightness = 1.6,
+    Brightness = 1.2,
     FogColor = Color3.fromRGB(2, 2, 5),
     FogStart = 50,
     FogEnd = 300,
@@ -152,12 +152,14 @@ local Constants = {
     
     -- Minimap Colors
     MinimapColors = {
-        Wall = Color3.fromRGB(20, 20, 20),
+        Wall = Color3.fromRGB(10, 60, 10),
         Lava = Color3.fromRGB(255, 100, 0),
         Spike = Color3.fromRGB(200, 200, 200),
-        Floor = Color3.fromRGB(200, 200, 200),
-        Player = Color3.fromRGB(0, 255, 0),
-        Cat = Color3.fromRGB(255, 255, 0)
+        Floor = Color3.fromRGB(120, 120, 120),
+        Player = Color3.fromRGB(255, 255, 255),
+        Cat = Color3.fromRGB(255, 55, 120),
+        Circle = Color3.fromRGB(255, 255, 255), -- White minimap border/circle
+        OtherPlayer = Color3.fromRGB(0, 120, 255) -- Other players color indicator
     },
     
     -- Cats Config
@@ -384,7 +386,7 @@ local Constants = {
         },
         Damage = { 
             SoundId = "rbxassetid://88918244316285", 
-            Volume = 0.33, 
+            Volume = 0, 
             FadeInDuration = 0, 
             FadeOutDuration = 0, 
             Looped = false, 
@@ -409,6 +411,28 @@ local Constants = {
             PlaybackSpeed = 1.05, 
             PlaybackStart = 0 
         },
+    },
+
+    ShopPrices = {
+        Potion = 5,
+        EnergyDrink = 5,
+        Shield = 5,
+        Bone = 5,
+        FlashlightUpgrade = 10,
+        Minimap = 18,
+        Bandage = 7
+    },
+
+    DogPatrolRadius = 75,
+    DogLostChaseSearchDuration = 4.0,
+
+    Leaderboard = {
+        TitleTextSize = 80,
+        RankTextSize = 72,
+        NameTextSize = 68,
+        ValueTextSize = 68,
+        RowHeight = 120,
+        RowPadding = 12
     },
 
     Parkour = {

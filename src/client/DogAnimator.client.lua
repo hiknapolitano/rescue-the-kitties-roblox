@@ -158,7 +158,10 @@ RunService.Heartbeat:Connect(function(deltaTime)
             local sway = cosAnim * 0.03
             data.rootMotor.C0 = data.originalRootC0 * CFrame.new(0, bob, 0) * CFrame.Angles(0, 0, sway)
         else
-            data.rootMotor.C0 = data.originalRootC0 * CFrame.new(0, sinIdle * 0.05, 0)
+            -- Organic breathing bob + chest expand tilt (Y bob and Z pitch tilt)
+            local breatheBob = math.sin(t * 2.5) * 0.05
+            local breatheTilt = math.sin(t * 2.5) * 0.02
+            data.rootMotor.C0 = data.originalRootC0 * CFrame.new(0, breatheBob, 0) * CFrame.Angles(breatheTilt, 0, 0)
         end
         
         -- Individual Parts
@@ -203,7 +206,9 @@ RunService.Heartbeat:Connect(function(deltaTime)
                 if isMoving then
                     p.motor.C0 = p.originalC0 * CFrame.Angles(sinAnim * 0.1, 0, 0)
                 else
-                    p.motor.C0 = p.motor.C0:Lerp(p.originalC0 * CFrame.Angles(0, sinLook * 0.15, 0), 0.1)
+                    -- Breathing head tilt (X rotation) + horizontal look around (Y rotation)
+                    local breatheHeadTilt = math.sin(t * 2.5) * 0.04
+                    p.motor.C0 = p.motor.C0:Lerp(p.originalC0 * CFrame.Angles(breatheHeadTilt, sinLook * 0.15, 0), 0.1)
                 end
             end
         end

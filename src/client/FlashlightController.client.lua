@@ -12,20 +12,6 @@ local SoundManager = require(Shared:WaitForChild("SoundManager"))
 
 local player = Players.LocalPlayer
 
-local wasFlashlightEquipped = false
-
--- On (re)spawn, sync the flag so we don't fire the "on" sound if flashlight is
--- already equipped (e.g. the server gives it immediately at spawn start).
-local function syncFlashlightFlagForChar(char)
-    wasFlashlightEquipped = char:FindFirstChild("Flashlight") ~= nil
-end
-if player.Character then syncFlashlightFlagForChar(player.Character) end
-player.CharacterAdded:Connect(syncFlashlightFlagForChar)
-
--- Clean up old FlashlightHUD if it exists
-local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("FlashlightHUD")
-if oldGui then oldGui:Destroy() end
-
 -- Cache of per-player light setups: { [Player] = { attach, light, hrp } }
 local playerLightCache = {}
 
@@ -61,12 +47,75 @@ local function getOrCreateLight(pChar, pHrp)
     return attach, light
 end
 
+local function isGameLoading()
+    return playerGui and playerGui:FindFirstChild("LoadingScreen") ~= nil
+end
+
+local function isCharacterInSafeZone(character)
+    if not character then return false end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    
+    local playerPos = Vector2.new(hrp.Position.X, hrp.Position.Z)
+    
+    -- Check distance to Base model pivot
+    local baseModel = workspace:FindFirstChild("Base")
+    if baseModel then
+        local basePivot = baseModel:GetPivot()
+        local centerPos = Vector2.new(basePivot.Position.X, basePivot.Position.Z)
+        if (playerPos - centerPos).Magnitude < 45 then
+            return true
+        end
+    end
+    
+    -- Check SafeZone2 if it exists
+    local safeZone2 = workspace:FindFirstChild("SafeZone2")
+    if safeZone2 and safeZone2:IsA("BasePart") then
+        local sz2Pos = Vector2.new(safeZone2.Position.X, safeZone2.Position.Z)
+        local sz2Radius = math.max(safeZone2.Size.X, safeZone2.Size.Z) / 2 + 5
+        if (playerPos - sz2Pos).Magnitude < sz2Radius then
+            return true
+        end
+    end
+    
+    return false
+end
+
+local isLightCurrentlyOn = false
+
+-- On (re)spawn, sync the flag so we don't fire the "on" sound if flashlight is
+-- already active (e.g. spawned in base where it is off).
+local function syncFlashlightFlagForChar(char)
+    task.defer(function()
+        local hrp = char:WaitForChild("HumanoidRootPart", 5)
+        if hrp then
+            local inSafeZone = isCharacterInSafeZone(char) or isGameLoading()
+            local holdingFlashlight = char:FindFirstChild("Flashlight") ~= nil
+            local hasHelmet = player:GetAttribute("HasHelmet") or false
+            isLightCurrentlyOn = (holdingFlashlight or hasHelmet) and not inSafeZone
+            
+            local _, light = getOrCreateLight(char, hrp)
+            if light then
+                light.Enabled = isLightCurrentlyOn
+            end
+        else
+            isLightCurrentlyOn = false
+        end
+    end)
+end
+
+if player.Character then syncFlashlightFlagForChar(player.Character) end
+player.CharacterAdded:Connect(syncFlashlightFlagForChar)
+
+-- Clean up old FlashlightHUD if it exists
+local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("FlashlightHUD")
+if oldGui then oldGui:Destroy() end
+
 -- Clean up cache when players leave
 Players.PlayerRemoving:Connect(function(p)
     playerLightCache[p] = nil
 end)
 
--- Clean up old handle-based attachments once per character spawn, not per frame
 local function cleanupOldHandleAttachments(char)
     local tool = char:FindFirstChild("Flashlight")
     if tool then
@@ -74,6 +123,15 @@ local function cleanupOldHandleAttachments(char)
         if handle then
             local oldAttach = handle:FindFirstChild("LightAttachment")
             if oldAttach then oldAttach:Destroy() end
+        end
+    end
+    
+    local helmet = char:FindFirstChild("FlashlightHelmet")
+    if helmet then
+        for _, desc in ipairs(helmet:GetDescendants()) do
+            if desc:IsA("SpotLight") then
+                desc:Destroy()
+            end
         end
     end
 end
@@ -105,7 +163,7 @@ local function refreshLocalCache()
     cachedLocalChar = char
     cachedLocalHrp = char and char:FindFirstChild("HumanoidRootPart") or nil
     cachedLocalTool = char and char:FindFirstChild("Flashlight") or nil
-    cachedLocalUpgraded = player:GetAttribute("HasUpgradedFlashlight") or false
+    cachedLocalUpgraded = player:GetAttribute("HasHelmet") or false
 end
 
 local function hookLocalCharacter(char)
@@ -114,12 +172,21 @@ local function hookLocalCharacter(char)
     if localToolRemovedConn then localToolRemovedConn:Disconnect() end
     
     localToolAddedConn = char.ChildAdded:Connect(function(child)
-        if child.Name == "Flashlight" or child.Name == "HumanoidRootPart" then
+        if child.Name == "Flashlight" or child.Name == "HumanoidRootPart" or child.Name == "FlashlightHelmet" then
+            if child.Name == "FlashlightHelmet" then
+                task.defer(function()
+                    for _, desc in ipairs(child:GetDescendants()) do
+                        if desc:IsA("SpotLight") then
+                            desc:Destroy()
+                        end
+                    end
+                end)
+            end
             refreshLocalCache()
         end
     end)
     localToolRemovedConn = char.ChildRemoved:Connect(function(child)
-        if child.Name == "Flashlight" or child.Name == "HumanoidRootPart" then
+        if child.Name == "Flashlight" or child.Name == "HumanoidRootPart" or child.Name == "FlashlightHelmet" then
             refreshLocalCache()
         end
     end)
@@ -129,7 +196,7 @@ end
 
 player.CharacterAdded:Connect(hookLocalCharacter)
 if player.Character then hookLocalCharacter(player.Character) end
-player:GetAttributeChangedSignal("HasUpgradedFlashlight"):Connect(refreshLocalCache)
+player:GetAttributeChangedSignal("HasHelmet"):Connect(refreshLocalCache)
 
 -- Frame counter for throttling remote player updates
 local frameCounter = 0
@@ -143,9 +210,24 @@ local function updateLocalFlashlight()
     local _, light = getOrCreateLight(cachedLocalChar, hrp)
     if not light then return end
     
-    if pTool then
-        if not wasFlashlightEquipped then
-            wasFlashlightEquipped = true
+    local helmet = cachedLocalChar:FindFirstChild("FlashlightHelmet")
+    if helmet then
+        for _, desc in ipairs(helmet:GetDescendants()) do
+            if desc:IsA("SpotLight") then
+                desc:Destroy()
+            end
+        end
+    end
+    
+    local inSafeZone = isCharacterInSafeZone(cachedLocalChar) or isGameLoading()
+    local holdingFlashlight = (pTool ~= nil)
+    local hasHelmet = cachedLocalUpgraded
+    
+    local shouldBeOn = (holdingFlashlight or hasHelmet) and not inSafeZone
+    
+    if shouldBeOn then
+        if not isLightCurrentlyOn then
+            isLightCurrentlyOn = true
             SoundManager.playSound(Constants.Sounds.FlashlightOn, hrp)
         end
         
@@ -154,7 +236,7 @@ local function updateLocalFlashlight()
         local targetBrightness = Constants.FlashlightNormal.Brightness
         local targetRange = Constants.FlashlightNormal.Range
         
-        if cachedLocalUpgraded then
+        if hasHelmet then
             targetBrightness = Constants.FlashlightUpgrade.Brightness
             targetRange = Constants.FlashlightUpgrade.Range
         end
@@ -166,8 +248,8 @@ local function updateLocalFlashlight()
             light.Range = targetRange
         end
     else
-        if wasFlashlightEquipped then
-            wasFlashlightEquipped = false
+        if isLightCurrentlyOn then
+            isLightCurrentlyOn = false
             SoundManager.playSound(Constants.Sounds.FlashlightOff, hrp)
         end
         light.Enabled = false
@@ -185,18 +267,31 @@ local function updateRemoteFlashlights()
         local pHrp = pChar:FindFirstChild("HumanoidRootPart")
         if not pHrp then continue end
         
+        local pHelmet = pChar:FindFirstChild("FlashlightHelmet")
+        if pHelmet then
+            for _, desc in ipairs(pHelmet:GetDescendants()) do
+                if desc:IsA("SpotLight") then
+                    desc:Destroy()
+                end
+            end
+        end
+        
         local pTool = pChar:FindFirstChild("Flashlight")
+        local pHasHelmet = p:GetAttribute("HasHelmet") or false
+        local pInSafeZone = isCharacterInSafeZone(pChar)
+        
+        local pShouldBeOn = (pTool ~= nil or pHasHelmet) and not pInSafeZone
         
         local _, light = getOrCreateLight(pChar, pHrp)
         if not light then continue end
         
-        if pTool then
+        if pShouldBeOn then
             light.Enabled = true
             
             local targetBrightness = Constants.FlashlightNormal.Brightness
             local targetRange = Constants.FlashlightNormal.Range
             
-            if p:GetAttribute("HasUpgradedFlashlight") then
+            if pHasHelmet then
                 targetBrightness = Constants.FlashlightUpgrade.Brightness
                 targetRange = Constants.FlashlightUpgrade.Range
             end

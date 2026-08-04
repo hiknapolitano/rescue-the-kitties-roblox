@@ -91,11 +91,11 @@ RunService.Heartbeat:Connect(function(dt)
         local distSq = dx * dx + dz * dz
         
         if distSq <= ANIM_RANGE_SQ then
-            local hoverOffset = Vector3.new(0, math.sin(timePassed * 2) * 0.5, 0)
+            local hoverOffset = Vector3.new(0, math.sin(timePassed * 2) * 0.3, 0)
             local newCFrame
             
             if data.isCash then
-                newCFrame = CFrame.new(basePos + hoverOffset + Vector3.new(0, 1, 0)) * CFrame.Angles(0, timePassed * 2, 0)
+                newCFrame = CFrame.new(basePos + hoverOffset) * CFrame.Angles(0, timePassed * 2, 0)
             else
                 newCFrame = CFrame.new(basePos + hoverOffset) * CFrame.Angles(0, timePassed * 1.5, 0)
             end
@@ -121,7 +121,7 @@ RunService.Heartbeat:Connect(function(dt)
         local distSq = dx * dx + dz * dz
         
         if distSq <= ANIM_RANGE_SQ then
-            local hoverOffset = Vector3.new(0, math.sin(timePassed * 2) * 0.5, 0)
+            local hoverOffset = Vector3.new(0, math.sin(timePassed * 2) * 0.3, 0)
             local newCFrame = CFrame.new(basePos + hoverOffset) * CFrame.Angles(0, timePassed * 1.5, 0)
             obj:PivotTo(newCFrame)
         end

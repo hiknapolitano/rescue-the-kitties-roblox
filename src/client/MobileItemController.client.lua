@@ -149,19 +149,13 @@ local function updateButtonLogic()
         if string.lower(tool.Name) == "shield" then
             targetAction = "None"
         elseif string.lower(tool.Name) == "flashlight" then
-            targetAction = "UnequipFlashlight"
-            btnText = "Flashlight Off"
+            targetAction = "None"
         else
             targetAction = "Use"
             btnText = "Use " .. tool.Name
         end
     else
-        if flashlight then
-            targetAction = "EquipFlashlight"
-            btnText = "Flashlight On"
-        else
-            targetAction = "None"
-        end
+        targetAction = "None"
     end
     
     currentAction = targetAction

@@ -66,6 +66,34 @@ local function makeLethal(model, deathReason, filterName)
                             local ff = Instance.new("ForceField")
                             ff.Parent = char
                             
+                            -- Teleport back to nearest platform if hit by spikes
+                            if deathReason == "Spikes" then
+                                local hrp = char:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    local playerPos = hrp.Position
+                                    local nearestPlat = nil
+                                    local minDist = math.huge
+                                    
+                                    local mazeFolder = workspace:FindFirstChild("MazeElements")
+                                    if mazeFolder then
+                                        for _, obj in ipairs(mazeFolder:GetDescendants()) do
+                                            if obj.Name == "ParkourPlatform" or obj.Name == "Platform" then
+                                                local platPos = obj:GetPivot().Position
+                                                local dist = (platPos - playerPos).Magnitude
+                                                if dist < minDist then
+                                                    minDist = dist
+                                                    nearestPlat = obj
+                                                end
+                                            end
+                                        end
+                                    end
+                                    
+                                    if nearestPlat then
+                                        char:PivotTo(nearestPlat:GetPivot() + Vector3.new(0, 3, 0))
+                                    end
+                                end
+                            end
+                            
                             -- Play damage sounds on client only
                             local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
                             local playSoundRemote = remotesFolder and remotesFolder:FindFirstChild("PlaySoundClient")
@@ -330,6 +358,75 @@ local function buildMaze()
                     return cType == 1
                 end
                 
+                local function isDoorCell(cType)
+                    if not cType then return false end
+                    return cType == 10 or cType == 12 or cType == 14 or cType == 16 or cType == 18 or cType == 20
+                end
+                
+                local function createHalfEdge(dir, neighborCell)
+                    if not isDoorCell(neighborCell) then return end
+                    
+                    local sizeX, sizeZ, posXOffset, posZOffset
+                    local halfSize = cellSize / 2
+                    
+                    if dir == "Right" then
+                        sizeX = halfSize
+                        sizeZ = cellSize
+                        posXOffset = cellSize / 4
+                        posZOffset = 0
+                    elseif dir == "Left" then
+                        sizeX = halfSize
+                        sizeZ = cellSize
+                        posXOffset = -cellSize / 4
+                        posZOffset = 0
+                    elseif dir == "Down" then
+                        sizeX = cellSize
+                        sizeZ = halfSize
+                        posXOffset = 0
+                        posZOffset = cellSize / 4
+                    elseif dir == "Up" then
+                        sizeX = cellSize
+                        sizeZ = halfSize
+                        posXOffset = 0
+                        posZOffset = -cellSize / 4
+                    end
+                    
+                    local function createVisualBlock(name, height, oversize, color, material, yOffset)
+                        local w = (dir == "Right" or dir == "Left") and (sizeZ + oversize) or sizeZ
+                        local hW = (dir == "Down" or dir == "Up") and (sizeX + oversize) or sizeX
+                        
+                        local block = Instance.new("Part")
+                        block.Name = name .. "Edge"
+                        block.Anchored = true
+                        block.CanCollide = false
+                        block.Size = Vector3.new(hW, height, w)
+                        block.Position = Vector3.new(posX + posXOffset, yOffset + height/2, posZ + posZOffset)
+                        block.Color = color
+                        block.Material = material
+                        block.Parent = wallModel
+                    end
+                    
+                    createVisualBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY)
+                    createVisualBlock("Middle", middleHeight, 0, biomeMidColor, midMat, groundY + Constants.WallBaseHeight)
+                    createVisualBlock("Top", Constants.WallTopHeight, Constants.WallTopOversize, biomeTopColor, topMat, groundY + Constants.WallBaseHeight + middleHeight)
+                    
+                    -- Collider Part
+                    local colliderBlock = Instance.new("Part")
+                    colliderBlock.Name = "ColliderEdge" .. dir .. "Half"
+                    colliderBlock.Anchored = true
+                    
+                    local colW = (dir == "Right" or dir == "Left") and cw or cw
+                    local colHW = (dir == "Down" or dir == "Up") and cw or cw
+                    local cSizeX = (dir == "Right" or dir == "Left") and halfSize or colHW
+                    local cSizeZ = (dir == "Down" or dir == "Up") and halfSize or colW
+                    
+                    colliderBlock.Size = Vector3.new(cSizeX, currentWallHeight, cSizeZ)
+                    colliderBlock.Position = Vector3.new(posX + posXOffset, groundY + currentWallHeight/2, posZ + posZOffset)
+                    colliderBlock.Transparency = 1
+                    colliderBlock.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
+                    colliderBlock.Parent = wallModel
+                end
+                
                 -- 2. Create Right Edge if cell to the right is also a Wall
                 if isWallLike(row[x+1]) then
                     createEdgeBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY, true)
@@ -361,6 +458,12 @@ local function buildMaze()
                     colliderBlock.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
                     colliderBlock.Parent = wallModel
                 end
+                
+                -- 4. Create half-length edges for door/portal neighbors (to prevent rounded corners without blocking openings)
+                createHalfEdge("Right", row[x+1])
+                createHalfEdge("Left", row[x-1])
+                createHalfEdge("Down", layout[z+1] and layout[z+1][x])
+                createHalfEdge("Up", layout[z-1] and layout[z-1][x])
                 
                 wallModel.PrimaryPart = colliderCyl
                 wallModel.Parent = mazeFolder
@@ -1109,8 +1212,8 @@ local function buildMaze()
                                 fb.Name = objName .. "_Pickup"
                                 if fb:IsA("Model") then
                                     local cframe, size = fb:GetBoundingBox()
-                                    fb:PivotTo(CFrame.new(posX, 2 + size.Y/2, posZ))
-                                    fb:SetAttribute("BasePosition", Vector3.new(posX, 2 + size.Y/2, posZ))
+                                    fb:PivotTo(CFrame.new(posX, size.Y/2 + 0.4, posZ))
+                                    fb:SetAttribute("BasePosition", Vector3.new(posX, size.Y/2 + 0.4, posZ))
                                     fb:SetAttribute("IsKey", true)
                                     for _, p in ipairs(fb:GetDescendants()) do
                                         if p:IsA("BasePart") then 
@@ -1121,8 +1224,8 @@ local function buildMaze()
                                     end
                                 elseif fb:IsA("BasePart") or fb:IsA("MeshPart") then
                                     local size = fb.Size
-                                    fb.CFrame = CFrame.new(posX, 2 + size.Y/2, posZ)
-                                    fb:SetAttribute("BasePosition", Vector3.new(posX, 2 + size.Y/2, posZ))
+                                    fb.CFrame = CFrame.new(posX, size.Y/2 + 0.4, posZ)
+                                    fb:SetAttribute("BasePosition", Vector3.new(posX, size.Y/2 + 0.4, posZ))
                                     fb:SetAttribute("IsKey", true)
                                     fb.Color = objColor
                                     fb.Anchored = true
@@ -1141,8 +1244,8 @@ local function buildMaze()
                                 fb.Anchored = true
                                 fb.CanCollide = false
                                 fb.Size = Vector3.new(2,2,2)
-                                fb.CFrame = CFrame.new(posX, 2 + fb.Size.Y/2, posZ)
-                                fb:SetAttribute("BasePosition", Vector3.new(posX, 2 + fb.Size.Y/2, posZ))
+                                fb.CFrame = CFrame.new(posX, fb.Size.Y/2 + 0.4, posZ)
+                                fb:SetAttribute("BasePosition", Vector3.new(posX, fb.Size.Y/2 + 0.4, posZ))
                                 fb:SetAttribute("IsKey", true)
                                 fb.Color = objColor
                                 fb.Parent = keysFolder

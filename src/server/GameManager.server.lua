@@ -49,18 +49,33 @@ playSoundRemote.Parent = remotesFolder
 local catsCollected = 0
 
 local function isCharacterInSafeZone(character)
+    if not character then return false end
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
     
+    local playerPos = Vector2.new(hrp.Position.X, hrp.Position.Z)
+    
+    -- Check distance to Base model pivot
     local baseModel = workspace:FindFirstChild("Base")
-    if not baseModel then return false end
+    if baseModel then
+        local basePivot = baseModel:GetPivot()
+        local centerPos = Vector2.new(basePivot.Position.X, basePivot.Position.Z)
+        if (playerPos - centerPos).Magnitude < 45 then
+            return true
+        end
+    end
     
-    local overlapParams = OverlapParams.new()
-    overlapParams.FilterDescendantsInstances = {baseModel}
-    overlapParams.FilterType = Enum.RaycastFilterType.Include
+    -- Check SafeZone2 if it exists
+    local safeZone2 = workspace:FindFirstChild("SafeZone2")
+    if safeZone2 and safeZone2:IsA("BasePart") then
+        local sz2Pos = Vector2.new(safeZone2.Position.X, safeZone2.Position.Z)
+        local sz2Radius = math.max(safeZone2.Size.X, safeZone2.Size.Z) / 2 + 5
+        if (playerPos - sz2Pos).Magnitude < sz2Radius then
+            return true
+        end
+    end
     
-    local partsInBox = workspace:GetPartBoundsInBox(hrp.CFrame, Vector3.new(4, 10, 4), overlapParams)
-    return #partsInBox > 0
+    return false
 end
 
 local function isCharacterInWhiteLight(character)
@@ -101,6 +116,25 @@ local function checkSafeZoneWin(character)
         if player then
             player:SetAttribute("GameWon", true)
             playSoundRemote:FireClient(player, "GameWin")
+            
+            -- Dismount and clear boat if any
+            local activeBoat = workspace:FindFirstChild(player.Name .. "_ActiveBoat")
+            if activeBoat then
+                activeBoat:Destroy()
+            end
+            player:SetAttribute("InBoat", false)
+            local hum = character:FindFirstChild("Humanoid")
+            if hum then
+                hum.Sit = false
+                hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+                hum.WalkSpeed = Constants.PlayerWalkSpeed or 22
+            end
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CollisionGroup = "Default"
+                end
+            end
             
             local spawnLoc = workspace:FindFirstChild("SpawnLocation")
             if spawnLoc and character.PrimaryPart then
@@ -186,13 +220,7 @@ respawnPlayerRemote.OnServerEvent:Connect(function(player)
     player:SetAttribute("DogChasing", false)
     player:SetAttribute("DogChasingCount", 0)
     
-    local leaderstats = player:FindFirstChild("leaderstats")
-    if leaderstats then
-        local coins = leaderstats:FindFirstChild("Coins")
-        if coins and player.Name ~= "beabadoobeelson" then
-            coins.Value = 0
-        end
-    end
+    -- Cash is persistent, so do not reset coins to 0 here.
     
     resetHudRemote:FireClient(player)
     
@@ -271,7 +299,29 @@ resetWinStateRemote.OnServerEvent:Connect(function(player)
     player:SetAttribute("HasBlackKey", nil)
     player:SetAttribute("HasRainbowKey", nil)
     
+    -- Dismount and clear boat if any
+    local activeBoat = workspace:FindFirstChild(player.Name .. "_ActiveBoat")
+    if activeBoat then
+        activeBoat:Destroy()
+    end
+    player:SetAttribute("InBoat", false)
+    
     local character = player.Character
+    if character then
+        local hum = character:FindFirstChild("Humanoid")
+        if hum then
+            hum.Sit = false
+            hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+            hum.WalkSpeed = Constants.PlayerWalkSpeed or 22
+        end
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CollisionGroup = "Default"
+            end
+        end
+    end
+    
     local spawnLoc = workspace:FindFirstChild("SpawnLocation")
     if character and character.PrimaryPart and spawnLoc then
         character:PivotTo(CFrame.new(spawnLoc.Position + Vector3.new(0, 3, 0)))
@@ -371,6 +421,30 @@ Players.PlayerAdded:Connect(function(player)
         player:SetAttribute("HasHelmet", nil)
         player:SetAttribute("HasMinimap", nil)
         
+        -- Determine player gender on character spawn and store as attribute
+        task.spawn(function()
+            local humanoid = character:WaitForChild("Humanoid", 10)
+            if humanoid then
+                local success, desc = pcall(function()
+                    return humanoid:GetAppliedDescription()
+                end)
+                local isMale = true
+                if success and desc then
+                    local femaleTorsos = {
+                        [86499666] = true, -- Woman Torso (R15)
+                        [48474356] = true, -- ROBLOX Girl Torso (R6)
+                        [146522365] = true, -- Lindsey Torso
+                        [146524317] = true, -- Cindy Torso
+                        [86499905] = true, -- Summer Torso
+                    }
+                    if femaleTorsos[desc.Torso] then
+                        isMale = false
+                    end
+                end
+                player:SetAttribute("IsMale", isMale)
+            end
+        end)
+        
         -- Start timer ONLY if it hasn't started yet (e.g. brand new game)
         if player:GetAttribute("StartTime") == nil then
             task.spawn(function()
@@ -451,12 +525,7 @@ Players.PlayerAdded:Connect(function(player)
                 helmet.Name = "FlashlightHelmet"
                 helmet.CanCollide = false
                 helmet.Anchored = false
-                
-                local spotlight = Instance.new("SpotLight")
-                spotlight.Brightness = 4
-                spotlight.Range = 60
-                spotlight.Angle = 100
-                spotlight.Parent = helmet
+
                 
                 local head = character:FindFirstChild("Head")
                 if head then

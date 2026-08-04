@@ -195,7 +195,7 @@ task.spawn(function()
                 local playerNearby = false
                 for _, player in ipairs(Players:GetPlayers()) do
                     if player.Character and player.Character.PrimaryPart then
-                        if (player.Character.PrimaryPart.Position - cat.Position).Magnitude <= 80 then
+                        if (player.Character.PrimaryPart.Position - cat.Position).Magnitude <= 40 then
                             if not cat:GetAttribute("CollectedBy_" .. player.UserId) then
                                 playerNearby = true
                                 break
@@ -213,7 +213,7 @@ task.spawn(function()
                     end
                     
                     local sobConfig = math.random() > 0.5 and Constants.Sounds.CatSobbing or Constants.Sounds.CatSobbing2
-                    local newSound = SoundManager.playSound(sobConfig, cat, false, 80)
+                    local newSound = SoundManager.playSound(sobConfig, cat, false, 40)
                     if newSound then
                         newSound.Name = "SobbingSound"
                     end

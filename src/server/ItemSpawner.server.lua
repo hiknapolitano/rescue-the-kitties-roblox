@@ -116,12 +116,12 @@ local function createItem(itemName, position)
         prompt.Parent = part.PrimaryPart or part
         
         local orientation, size = part:GetBoundingBox()
-        local basePos = position + Vector3.new(0, (size.Y / 2) + 2, 0)
+        local basePos = position + Vector3.new(0, (size.Y / 2) + 0.4, 0)
         part:SetAttribute("BasePosition", basePos)
         part:PivotTo(CFrame.new(basePos))
     else
         prompt.Parent = part
-        local basePos = position + Vector3.new(0, (part.Size.Y / 2) + 2, 0)
+        local basePos = position + Vector3.new(0, (part.Size.Y / 2) + 0.4, 0)
         part:SetAttribute("BasePosition", basePos)
         part.CFrame = CFrame.new(basePos)
     end
@@ -283,11 +283,11 @@ local function getRandomPathPoint()
     
     for i=1, 50 do
         local randomTile = floorTiles[math.random(1, #floorTiles)]
-        local rx = (math.random() - 0.5) * randomTile.Size.X
-        local rz = (math.random() - 0.5) * randomTile.Size.Z
-        local testPos = randomTile.Position + Vector3.new(rx, 20, rz)
+        local rx = (math.random() - 0.5) * (randomTile.Size.X - 4.5)
+        local rz = (math.random() - 0.5) * (randomTile.Size.Z - 4.5)
+        local testPos = Vector3.new(randomTile.Position.X + rx, 50, randomTile.Position.Z + rz)
         
-        local hitInfo = workspace:Raycast(testPos, Vector3.new(0, -30, 0), raycastParams)
+        local hitInfo = workspace:Raycast(testPos, Vector3.new(0, -60, 0), raycastParams)
         
         if hitInfo and hitInfo.Instance.Name == "FloorTile" then
             if not isNearSafeZone(hitInfo.Position) then
@@ -333,12 +333,16 @@ task.spawn(function()
         local pos = getRandomPathPoint()
         if pos then
             local itemName = itemsList[math.random(1, #itemsList)]
-            if itemName == "Slime" then
-                spawnSlime(pos)
-            elseif itemName == "Mud" then
-                spawnMud(pos)
+            if itemName == "Cash" and math.random() < 0.30 then
+                -- Skip spawning cash (30% less frequent)
             else
-                createItem(itemName, pos)
+                if itemName == "Slime" then
+                    spawnSlime(pos)
+                elseif itemName == "Mud" then
+                    spawnMud(pos)
+                else
+                    createItem(itemName, pos)
+                end
             end
         end
     end
@@ -359,14 +363,18 @@ task.spawn(function()
         local pos = getRandomPathPoint()
         if pos then
             local itemName = itemsList[math.random(1, #itemsList)]
-            if itemName == "Slime" then
-                spawnSlime(pos)
-            elseif itemName == "Mud" then
-                spawnMud(pos)
+            if itemName == "Cash" and math.random() < 0.30 then
+                -- Skip spawning cash (30% less frequent)
             else
-                local dynamicMaxItems = Constants.MaxNormalItems + (#Players:GetPlayers() * 8)
-                if currentItems < dynamicMaxItems then
-                    createItem(itemName, pos)
+                if itemName == "Slime" then
+                    spawnSlime(pos)
+                elseif itemName == "Mud" then
+                    spawnMud(pos)
+                else
+                    local dynamicMaxItems = Constants.MaxNormalItems + (#Players:GetPlayers() * 8)
+                    if currentItems < dynamicMaxItems then
+                        createItem(itemName, pos)
+                    end
                 end
             end
         end

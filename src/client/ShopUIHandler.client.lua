@@ -14,6 +14,31 @@ local purchaseItemRemote = remotes:WaitForChild("PurchaseItem")
 local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
 local SoundManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SoundManager"))
 
+local function getVisualModel(template)
+    local cloneModel = Instance.new("Model")
+    local clonePart = nil
+    
+    if template:IsA("Tool") then
+        local handle = template:FindFirstChild("Handle") or template:FindFirstChildWhichIsA("BasePart", true)
+        if handle then
+            clonePart = handle:Clone()
+        end
+    elseif template:IsA("Model") then
+        local clonedModel = template:Clone()
+        return clonedModel
+    elseif template:IsA("BasePart") then
+        clonePart = template:Clone()
+    end
+    
+    if clonePart then
+        clonePart.Parent = cloneModel
+        cloneModel.PrimaryPart = clonePart
+        return cloneModel
+    end
+    
+    return nil
+end
+
 local shopGui = nil
 
 local function closeShop()
@@ -175,9 +200,97 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
         local hasDiscount = success and inGroup
         local finalPrice = hasDiscount and math.floor(item.price * 0.8) or item.price
         
+        local iconFrame = Instance.new("Frame")
+        iconFrame.Name = "IconFrame"
+        iconFrame.Size = UDim2.new(0, 55, 0, 55)
+        iconFrame.Position = UDim2.new(0, 10, 0.5, 0)
+        iconFrame.AnchorPoint = Vector2.new(0, 0.5)
+        iconFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        iconFrame.BorderSizePixel = 0
+        iconFrame.Parent = itemFrame
+        
+        local iconCorner = Instance.new("UICorner")
+        iconCorner.CornerRadius = UDim.new(0, 8)
+        iconCorner.Parent = iconFrame
+        
+        local viewport = Instance.new("ViewportFrame")
+        viewport.Name = "Viewport"
+        viewport.Size = UDim2.new(1, -4, 1, -4)
+        viewport.Position = UDim2.new(0, 2, 0, 2)
+        viewport.BackgroundTransparency = 1
+        viewport.Ambient = Color3.fromRGB(200, 200, 200)
+        viewport.LightColor = Color3.fromRGB(255, 255, 255)
+        viewport.LightDirection = Vector3.new(-1, -1, -1)
+        viewport.Parent = iconFrame
+
+        -- Render icon using same logic as inventory
+        task.spawn(function()
+            local objectName = item.id
+            -- Map shop IDs to object names
+            if objectName == "Potion" then
+                objectName = "potion"
+            elseif objectName == "Bone" then
+                objectName = "DogBone"
+            elseif objectName == "FlashlightUpgrade" or objectName == "FlashlightUpgradePerm" then
+                objectName = "Helmet"
+            end
+            
+            if objectName == "Bone" or objectName == "DogBone" or item.id == "Flashlight" then
+                local emojiLabel = Instance.new("TextLabel")
+                emojiLabel.Size = UDim2.new(1, 0, 1, 0)
+                emojiLabel.BackgroundTransparency = 1
+                emojiLabel.Text = (objectName == "Flashlight") and "🔦" or "🦴"
+                emojiLabel.TextScaled = true
+                emojiLabel.Parent = viewport
+            elseif item.id == "Minimap" or item.id == "MinimapPerm" then
+                local emojiLabel = Instance.new("TextLabel")
+                emojiLabel.Size = UDim2.new(1, 0, 1, 0)
+                emojiLabel.BackgroundTransparency = 1
+                emojiLabel.Text = "🗺️"
+                emojiLabel.TextScaled = true
+                emojiLabel.Parent = viewport
+            else
+                local template = ReplicatedStorage:FindFirstChild("Objects") and ReplicatedStorage.Objects:FindFirstChild(objectName)
+                if template then
+                    local cloneModel = getVisualModel(template)
+                    if cloneModel then
+                        local angles = CFrame.Angles(0, math.rad(45), math.rad(15))
+                        if item.id == "Shield" then
+                            angles = CFrame.Angles(0, 0, 0)
+                        end
+                        
+                        cloneModel:PivotTo(CFrame.new(Vector3.zero) * angles)
+                        cloneModel.Parent = viewport
+                        
+                        local cam = Instance.new("Camera")
+                        local _, size = cloneModel:GetBoundingBox()
+                        local maxDim = math.max(size.X, size.Y, size.Z)
+                        
+                        local fovRadius = math.rad(cam.FieldOfView / 2)
+                        local distance = (maxDim / 2) / math.tan(fovRadius)
+                        
+                        local distanceMod = 1.25
+                        cam.CFrame = CFrame.lookAt(Vector3.new(0, 0, distance * distanceMod), Vector3.zero)
+                        viewport.CurrentCamera = cam
+                        cam.Parent = viewport
+                    end
+                else
+                    -- Fallback text if no template
+                    local fallback = Instance.new("TextLabel")
+                    fallback.Size = UDim2.new(1, 0, 1, 0)
+                    fallback.BackgroundTransparency = 1
+                    fallback.Text = item.name
+                    fallback.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    fallback.Font = Enum.Font.FredokaOne
+                    fallback.TextScaled = true
+                    fallback.Parent = viewport
+                end
+            end
+        end)
+
         local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(0.65, 0, 0.4, 0)
-        nameLabel.Position = UDim2.new(0, 15, 0, 5)
+        nameLabel.Size = UDim2.new(1, -210, 0, 25)
+        nameLabel.Position = UDim2.new(0, 75, 0, 10)
         nameLabel.BackgroundTransparency = 1
         
         local showDiscount = hasDiscount and not isGamepass
@@ -194,8 +307,8 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
         nameConstraint.Parent = nameLabel
 
         local descLabel = Instance.new("TextLabel")
-        descLabel.Size = UDim2.new(0.65, 0, 0.45, 0)
-        descLabel.Position = UDim2.new(0, 15, 0.4, 5)
+        descLabel.Size = UDim2.new(1, -210, 0, 30)
+        descLabel.Position = UDim2.new(0, 75, 0, 35)
         descLabel.BackgroundTransparency = 1
         descLabel.Text = item.desc
         descLabel.TextColor3 = Color3.fromRGB(220, 220, 220)

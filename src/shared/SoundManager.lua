@@ -1,4 +1,5 @@
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundManager = {}
 
 function SoundManager.playSound(soundConfig, parent, overrideLoop, maxDistance)

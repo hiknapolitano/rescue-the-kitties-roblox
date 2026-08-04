@@ -39,16 +39,108 @@ local function createFireflies()
 end
 
 local fireflies = createFireflies()
+local lavaEmitters = {}
+
+local function createLavaParticlesForPart(child)
+    if child:FindFirstChild("LavaParticles") then return end
+    
+    local perfMode = player:GetAttribute("PerformanceMode")
+    local enabled = not perfMode
+    
+    local emitter = Instance.new("ParticleEmitter")
+    emitter.Name = "LavaParticles"
+    emitter.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 180, 0)), -- Yellow-orange core
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 69, 0)), -- Bright orange
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 0, 0))    -- Dark red/smoke
+    })
+    emitter.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.2),
+        NumberSequenceKeypoint.new(0.5, 0.45),
+        NumberSequenceKeypoint.new(1, 0.1)
+    })
+    emitter.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.2),
+        NumberSequenceKeypoint.new(0.8, 0.4),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    emitter.Lifetime = NumberRange.new(0.8, 1.8)
+    emitter.Rate = 12 -- Looks active and bubbly without lag
+    emitter.Speed = NumberRange.new(2.0, 5.0)
+    emitter.Acceleration = Vector3.new(0, 4.0, 0) -- Rises upward faster
+    emitter.SpreadAngle = Vector2.new(45, 45) -- Bubbly spread
+    emitter.EmissionDirection = Enum.NormalId.Top
+    emitter.Enabled = enabled
+    emitter.Parent = child
+    
+    table.insert(lavaEmitters, emitter)
+end
+
+local function setupLavaParticles()
+    -- Clear old emitters
+    for _, emitter in ipairs(lavaEmitters) do
+        if emitter.Parent then
+            emitter:Destroy()
+        end
+    end
+    table.clear(lavaEmitters)
+    
+    local mazeElements = workspace:WaitForChild("MazeElements", 20)
+    if not mazeElements then return end
+    
+    for _, child in ipairs(mazeElements:GetDescendants()) do
+        if child:IsA("BasePart") and (child.Name == "Lava" or child.Name == "JustLava" or child.Name == "LavaObby") then
+            createLavaParticlesForPart(child)
+        end
+    end
+end
 
 -- Sync with Performance Mode
 local function updatePerformance()
     local perfMode = player:GetAttribute("PerformanceMode")
-    if perfMode == true then
-        fireflies.Enabled = false
-    else
-        fireflies.Enabled = true
+    local enabled = not perfMode
+    
+    fireflies.Enabled = enabled
+    
+    local activeEmitters = {}
+    for _, emitter in ipairs(lavaEmitters) do
+        if emitter.Parent then
+            emitter.Enabled = enabled
+            table.insert(activeEmitters, emitter)
+        end
     end
+    lavaEmitters = activeEmitters
 end
 
 updatePerformance()
 player:GetAttributeChangedSignal("PerformanceMode"):Connect(updatePerformance)
+
+-- Re-setup particles when the maze is generated
+local function onMazeGeneratedChanged()
+    if workspace:GetAttribute("MazeGenerated") then
+        task.spawn(setupLavaParticles)
+    else
+        for _, emitter in ipairs(lavaEmitters) do
+            if emitter.Parent then
+                emitter:Destroy()
+            end
+        end
+        table.clear(lavaEmitters)
+    end
+end
+
+if workspace:GetAttribute("MazeGenerated") then
+    task.spawn(setupLavaParticles)
+end
+workspace:GetAttributeChangedSignal("MazeGenerated"):Connect(onMazeGeneratedChanged)
+
+-- Handle streaming and dynamic replication
+workspace.DescendantAdded:Connect(function(desc)
+    if not workspace:GetAttribute("MazeGenerated") then return end
+    if desc:IsA("BasePart") and (desc.Name == "Lava" or desc.Name == "JustLava" or desc.Name == "LavaObby") then
+        local mazeElements = workspace:FindFirstChild("MazeElements")
+        if mazeElements and desc:IsDescendantOf(mazeElements) then
+            createLavaParticlesForPart(desc)
+        end
+    end
+end)

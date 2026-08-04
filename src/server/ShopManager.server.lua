@@ -54,13 +54,13 @@ end)
 local ShopItems = {
     { id = "MinimapPerm", name = "PERMANENT Minimap", price = 0, isGamepass = true, desc = "See the maze and remaining cats FOREVER! (Robux)" },
     { id = "FlashlightUpgradePerm", name = "PERMANENT Flashlight Upgrade", price = 0, isGamepass = true, desc = "A miner's helmet with an infinite light FOREVER! (Robux)" },
-    { id = "Potion", name = "Invisibility Potion", price = 5, desc = "Become invisible to dogs for 10 seconds." },
-    { id = "EnergyDrink", name = "Energy Drink", price = 5, desc = "Run faster for 10 seconds." },
-    { id = "Shield", name = "Shield", price = 5, desc = "Survive one dog attack." },
-    { id = "Bone", name = "Bone", price = 5, desc = "Throw to distract the closest dog." },
-    { id = "FlashlightUpgrade", name = "Flashlight Upgrade", price = 10, desc = "A miner's helmet with an infinite light. Replaces your handheld flashlight." },
-    { id = "Minimap", name = "Minimap", price = 18, desc = "See the maze and remaining cats." },
-    { id = "Bandage", name = "Bandage", price = 7, desc = "Heal yourself from hazard damage." }
+    { id = "Potion", name = "Invisibility Potion", price = Constants.ShopPrices.Potion or 5, desc = "Become invisible to dogs for 10 seconds." },
+    { id = "EnergyDrink", name = "Energy Drink", price = Constants.ShopPrices.EnergyDrink or 5, desc = "Run faster for 10 seconds." },
+    { id = "Shield", name = "Shield", price = Constants.ShopPrices.Shield or 5, desc = "Survive one dog attack." },
+    { id = "Bone", name = "Bone", price = Constants.ShopPrices.Bone or 5, desc = "Throw to distract the closest dog." },
+    { id = "FlashlightUpgrade", name = "Flashlight Upgrade", price = Constants.ShopPrices.FlashlightUpgrade or 10, desc = "A miner's helmet with an infinite light. Replaces your handheld flashlight." },
+    { id = "Minimap", name = "Minimap", price = Constants.ShopPrices.Minimap or 18, desc = "See the maze and remaining cats." },
+    { id = "Bandage", name = "Bandage", price = Constants.ShopPrices.Bandage or 7, desc = "Heal yourself from hazard damage." }
 }
 
 -- Setup Shop Stand Prompt & Assign Unique Avatars
@@ -312,11 +312,7 @@ local function giveItem(player, itemId)
             helmet.CanCollide = false
             helmet.Anchored = false
             
-            local spotlight = Instance.new("SpotLight")
-            spotlight.Brightness = 4
-            spotlight.Range = 60
-            spotlight.Angle = 100
-            spotlight.Parent = helmet
+
             
             local head = player.Character:FindFirstChild("Head")
             if head then
