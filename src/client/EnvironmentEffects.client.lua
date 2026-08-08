@@ -2,6 +2,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared:WaitForChild("Constants"))
+
 local player = Players.LocalPlayer
 
 local function createFireflies()
@@ -109,6 +112,19 @@ local function setupLavaParticles()
     end
 end
 
+local function updateTextureScale(texture)
+    local perfMode = player:GetAttribute("PerformanceMode")
+    local scaleMultiplier = perfMode and 4 or 1
+    
+    if texture.Name == "HQWallTexture" and texture.Texture == Constants.WallMiddleTextureId then
+        texture.StudsPerTileU = (Constants.WallMiddleTextureScale or 1) * scaleMultiplier
+        texture.StudsPerTileV = (Constants.WallMiddleTextureScale or 1) * scaleMultiplier
+    elseif texture.Name == "HQFloorTexture" then
+        texture.StudsPerTileU = (Constants.GroundTextureScale or 1) * scaleMultiplier
+        texture.StudsPerTileV = (Constants.GroundTextureScale or 1) * scaleMultiplier
+    end
+end
+
 -- Sync with Performance Mode
 local function updatePerformance()
     local perfMode = player:GetAttribute("PerformanceMode")
@@ -124,6 +140,15 @@ local function updatePerformance()
         end
     end
     lavaEmitters = activeEmitters
+    
+    local mazeElements = workspace:FindFirstChild("MazeElements")
+    if mazeElements then
+        for _, desc in ipairs(mazeElements:GetDescendants()) do
+            if desc:IsA("Texture") then
+                updateTextureScale(desc)
+            end
+        end
+    end
 end
 
 updatePerformance()
@@ -133,6 +158,7 @@ player:GetAttributeChangedSignal("PerformanceMode"):Connect(updatePerformance)
 local function onMazeGeneratedChanged()
     if workspace:GetAttribute("MazeGenerated") then
         task.spawn(setupLavaParticles)
+        task.spawn(updatePerformance)
     else
         for _, emitter in ipairs(lavaEmitters) do
             if emitter.Parent then
@@ -145,6 +171,7 @@ end
 
 if workspace:GetAttribute("MazeGenerated") then
     task.spawn(setupLavaParticles)
+    task.spawn(updatePerformance)
 end
 workspace:GetAttributeChangedSignal("MazeGenerated"):Connect(onMazeGeneratedChanged)
 
@@ -155,6 +182,12 @@ workspace.DescendantAdded:Connect(function(desc)
         local mazeElements = workspace:FindFirstChild("MazeElements")
         if mazeElements and desc:IsDescendantOf(mazeElements) then
             createLavaParticlesForPart(desc)
+        end
+    end
+    if desc:IsA("Texture") then
+        local mazeElements = workspace:FindFirstChild("MazeElements")
+        if mazeElements and desc:IsDescendantOf(mazeElements) then
+            updateTextureScale(desc)
         end
     end
 end)

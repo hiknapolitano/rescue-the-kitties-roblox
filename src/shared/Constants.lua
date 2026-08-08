@@ -94,10 +94,10 @@ local Constants = {
     DogDamage = 34,
     LavaDamage = 50,
     
-    StarTime5 = 500,
-    StarTime4 = 650,
-    StarTime3 = 750,
-    StarTime2 = 850,
+    StarTime5 = 590,
+    StarTime4 = 700,
+    StarTime3 = 850,
+    StarTime2 = 950,
     
     -- Game logic
     GroupId = 738544426, -- Replace with your actual Roblox Group ID for the discount
@@ -146,13 +146,13 @@ local Constants = {
     FogColor = Color3.fromRGB(2, 2, 5),
     FogStart = 50,
     FogEnd = 300,
-    ClockTime = 0, -- 0 = Midnight
+    ClockTime = 18, -- 0 = Midnight
     GlobalShadows = false,
     
     -- Dog Red Light Settings
-    DogLightColor = Color3.fromRGB(255, 0, 40),
+    DogLightColor = Color3.fromRGB(255, 0, 0),
     DogLightBrightness = 1.7,
-    DogLightRange = 45,
+    DogLightRange = 65,
     
     -- Monetization
     ReviveProductId = 3611065335, -- TODO: Replace with your actual Developer Product ID from the Roblox website
@@ -238,7 +238,7 @@ local Constants = {
         },
         BackgroundMusic = { 
             SoundId = "rbxassetid://91516606716178", 
-            Volume = 0.5, 
+            Volume = 1, 
             FadeInDuration = 2, 
             FadeOutDuration = 2, 
             Looped = true, 

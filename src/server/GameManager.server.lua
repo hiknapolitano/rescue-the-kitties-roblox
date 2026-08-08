@@ -222,6 +222,30 @@ respawnPlayerRemote.OnServerEvent:Connect(function(player)
     player:SetAttribute("DogChasing", false)
     player:SetAttribute("DogChasingCount", 0)
     
+    player:SetAttribute("CatsRescued", 0)
+    player:SetAttribute("StartTime", nil)
+    
+    -- Reset keys and statuses
+    player:SetAttribute("HasBlueKey", nil)
+    player:SetAttribute("HasYellowKey", nil)
+    player:SetAttribute("HasRedKey", nil)
+    player:SetAttribute("HasGreenKey", nil)
+    player:SetAttribute("HasPurpleKey", nil)
+    player:SetAttribute("HasCyanKey", nil)
+    player:SetAttribute("HasOrangeKey", nil)
+    player:SetAttribute("HasWhiteKey", nil)
+    player:SetAttribute("HasBlackKey", nil)
+    player:SetAttribute("HasRainbowKey", nil)
+    
+    local activeBoat = workspace:FindFirstChild(player.Name .. "_ActiveBoat")
+    if activeBoat then
+        activeBoat:Destroy()
+    end
+    player:SetAttribute("InBoat", false)
+    
+    local resetCatsEvent = remotesFolder:FindFirstChild("ResetCats")
+    if resetCatsEvent then resetCatsEvent:Fire(player) end
+    
     -- Cash is persistent, so do not reset coins to 0 here.
     
     resetHudRemote:FireClient(player)
@@ -288,6 +312,7 @@ resetWinStateRemote.OnServerEvent:Connect(function(player)
     gameWon = false
     player:SetAttribute("GameWon", false)
     player:SetAttribute("CatsRescued", 0)
+    player:SetAttribute("StartTime", nil)
     
     -- Reset keys and statuses
     player:SetAttribute("HasBlueKey", nil)

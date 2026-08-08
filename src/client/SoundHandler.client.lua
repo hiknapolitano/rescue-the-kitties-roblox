@@ -95,7 +95,8 @@ local function registerSound(sound)
         end
         
         local current = sound:GetAttribute("OriginalVolume")
-        if lastClientOriginalVolume[sound] == current then
+        local lastOrig = lastClientOriginalVolume[sound]
+        if lastOrig and math.abs(lastOrig - current) < 0.001 then
             return
         end
         
@@ -110,13 +111,17 @@ local function registerSound(sound)
             return
         end
         
-        if lastClientVolume[sound] == sound.Volume then
+        local currentVol = sound.Volume
+        local lastVol = lastClientVolume[sound]
+        if lastVol and math.abs(lastVol - currentVol) < 0.001 then
             return
         end
         
+        if isUpdatingVolume[sound] then return end
+        
         -- If the volume change was NOT initiated by the client's own scaling code,
         -- it must be a replicated change from the server. Update the base volume.
-        local newOriginalVolume = sound.Volume
+        local newOriginalVolume = currentVol
         lastClientOriginalVolume[sound] = newOriginalVolume
         sound:SetAttribute("OriginalVolume", newOriginalVolume)
         updateSoundVolume(sound)

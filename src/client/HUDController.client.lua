@@ -358,7 +358,9 @@ end)
 
 -- Background Music Ducking: driven by attribute signals, not polling
 local function updateMusicDucking()
-    local shouldMute = player:GetAttribute("DogChasing") or player:GetAttribute("GameLost") or player:GetAttribute("GameWon")
+    local cats = player:GetAttribute("CatsRescued") or 0
+    local allCatsCollected = (cats >= Constants.TotalCats)
+    local shouldMute = player:GetAttribute("DogChasing") or player:GetAttribute("GameLost") or player:GetAttribute("GameWon") or allCatsCollected
     if shouldMute and not bgmMuted then
         bgmMuted = true
         if bgmInstance then
@@ -377,6 +379,7 @@ end
 player:GetAttributeChangedSignal("DogChasing"):Connect(updateMusicDucking)
 player:GetAttributeChangedSignal("GameLost"):Connect(updateMusicDucking)
 player:GetAttributeChangedSignal("GameWon"):Connect(updateMusicDucking)
+player:GetAttributeChangedSignal("CatsRescued"):Connect(updateMusicDucking)
 
 -- Controller rumble while being chased: pulse every 0.3s as long as DogChasing is true
 local chaseRumbleTask = nil
