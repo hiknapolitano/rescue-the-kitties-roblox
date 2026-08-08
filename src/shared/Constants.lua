@@ -450,7 +450,7 @@ local Constants = {
         EnergyDrink = 5,
         Shield = 5,
         Bone = 5,
-        FlashlightUpgrade = 10,
+        FlashlightUpgrade = 5,
         Minimap = 18,
         Bandage = 7
     },

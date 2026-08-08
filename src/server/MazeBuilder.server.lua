@@ -1099,7 +1099,7 @@ local function buildMaze()
                                     sg.Name = "CatCounterGui"
                                     sg.Size = UDim2.new(10, 0, 3, 0)
                                     sg.StudsOffset = Vector3.new(0, 8, 0)
-                                    sg.AlwaysOnTop = false  -- hides behind walls naturally
+                                    sg.AlwaysOnTop = true  -- prevents clipping with walls
                                     sg.MaxDistance = 60     -- only visible when close
                                     sg.Enabled = false      -- hidden until GreenKey is unlocked
                                     

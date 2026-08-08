@@ -1005,7 +1005,7 @@ RunService.RenderStepped:Connect(function()
                             end
                             
                             local baseColor = isFinal and Color3.fromRGB(142, 0, 88) or (primary and primary.Color or Color3.fromRGB(200, 200, 200))
-                            cDot.BackgroundColor3 = isUnlocked and Color3.fromRGB(0, 255, 100) or baseColor
+                            cDot.BackgroundColor3 = baseColor
                             
                             cDot.Position = UDim2.new(0.5, rx * scale, 0.5, rz * scale)
                             cDot.Rotation = 0
@@ -1107,6 +1107,13 @@ if resetHudRemote then
     resetHudRemote.OnClientEvent:Connect(function()
         local cats = player:GetAttribute("CatsRescued") or 0
         catsLabel.Text = "🐱 " .. tostring(cats) .. " / " .. Constants.TotalCats
+        winPromptLabel.Visible = false
+    end)
+end
+
+local showWinScreenRemote = remotesFolder:WaitForChild("ShowWinScreen", 5)
+if showWinScreenRemote then
+    showWinScreenRemote.OnClientEvent:Connect(function()
         winPromptLabel.Visible = false
     end)
 end
@@ -1351,3 +1358,34 @@ if isWhitelisted(player.Name) then
         end
     end)
 end
+
+-- Dynamically translate ProximityPrompts and Vendor Name
+task.spawn(function()
+    -- Vendor
+    local shopArea = workspace:WaitForChild("ShopArea", 10)
+    if shopArea then
+        local vendor = shopArea:WaitForChild("Vendor", 10)
+        if vendor then
+            local vendorNameGui = vendor:WaitForChild("VendorNameGui", 10)
+            if vendorNameGui then
+                local label = vendorNameGui:WaitForChild("NameLabel", 10)
+                if label then
+                    label.Text = "🛒 " .. TranslationHelper.translate("Vendor")
+                end
+            end
+        end
+    end
+end)
+
+local ProximityPromptService = game:GetService("ProximityPromptService")
+ProximityPromptService.PromptShown:Connect(function(prompt)
+    if not prompt:GetAttribute("Translated") then
+        if prompt.ActionText and prompt.ActionText ~= "" then
+            prompt.ActionText = TranslationHelper.translate(prompt.ActionText)
+        end
+        if prompt.ObjectText and prompt.ObjectText ~= "" then
+            prompt.ObjectText = TranslationHelper.translate(prompt.ObjectText)
+        end
+        prompt:SetAttribute("Translated", true)
+    end
+end)
