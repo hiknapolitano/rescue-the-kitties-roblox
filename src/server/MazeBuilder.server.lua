@@ -15,6 +15,37 @@ end
 
 print("Loaded map:", Constants.ActiveLevel)
 
+local function applyWallTexture(part, name)
+    local textureId = nil
+    local studsScale = 4 -- fallback default
+    if name == "Base" or name == "BaseNode" or name == "BaseEdge" then
+        textureId = Constants.WallBaseTextureId
+        studsScale = Constants.WallBaseTextureScale or 4
+    elseif name == "Middle" or name == "MiddleNode" or name == "MiddleEdge" then
+        textureId = Constants.WallMiddleTextureId
+        studsScale = Constants.WallMiddleTextureScale or 5
+    elseif name == "Top" or name == "TopNode" or name == "TopEdge" then
+        textureId = Constants.WallTopTextureId
+        studsScale = Constants.WallTopTextureScale or 4
+    end
+    
+    if textureId and textureId ~= "" then
+        local faces = {
+            Enum.NormalId.Front, Enum.NormalId.Back,
+            Enum.NormalId.Left, Enum.NormalId.Right,
+            Enum.NormalId.Top
+        }
+        for _, face in ipairs(faces) do
+            local texture = Instance.new("Texture")
+            texture.Name = "HQWallTexture"
+            texture.Texture = textureId
+            texture.Face = face
+            texture.StudsPerTileU = studsScale
+            texture.StudsPerTileV = studsScale
+            texture.Parent = part
+        end
+    end
+end
 
 local function makeLethal(model, deathReason, filterName)
     local partsToCheck = {model}
@@ -271,6 +302,17 @@ local function buildMaze()
                 floorTile.Color = finalGroundColor
                 floorTile.Material = Constants.GroundMaterial
                 floorTile.Parent = floorsFolder
+                
+                -- Apply custom ground texture if configured
+                if Constants.GroundTextureId and Constants.GroundTextureId ~= "" then
+                    local texture = Instance.new("Texture")
+                    texture.Name = "HQFloorTexture"
+                    texture.Texture = Constants.GroundTextureId
+                    texture.Face = Enum.NormalId.Top
+                    texture.StudsPerTileU = Constants.GroundTextureScale or 4
+                    texture.StudsPerTileV = Constants.GroundTextureScale or 4
+                    texture.Parent = floorTile
+                end
             end
 
             if cellType == 1 then
@@ -313,6 +355,7 @@ local function buildMaze()
                     cyl.Color = color
                     cyl.Material = material
                     cyl.Parent = wallModel
+                    applyWallTexture(cyl, name)
                 end
                 
                 local function createEdgeBlock(name, height, oversize, color, material, yOffset, isRight)
@@ -331,6 +374,7 @@ local function buildMaze()
                     block.Color = color
                     block.Material = material
                     block.Parent = wallModel
+                    applyWallTexture(block, name)
                 end
                 
                 -- 1. Create Node (Cylinder) at current cell
@@ -404,6 +448,7 @@ local function buildMaze()
                         block.Color = color
                         block.Material = material
                         block.Parent = wallModel
+                        applyWallTexture(block, name)
                     end
                     
                     createVisualBlock("Base", Constants.WallBaseHeight, Constants.WallBaseOversize, biomeBaseColor, baseMat, groundY)
@@ -1186,11 +1231,13 @@ local function buildMaze()
                                         result.Material = block.Material
                                         result.Anchored = true
                                         result.Parent = doorModel
+                                        applyWallTexture(result, name)
                                         block:Destroy()
                                     else
                                         -- Subtraction failed: move the original block to doorModel
                                         warn("CSG Subtraction failed for door block " .. name .. ": " .. tostring(result))
                                         block.Parent = doorModel
+                                        applyWallTexture(block, name)
                                     end
                                     
                                     for _, cp in ipairs(activeCarves) do
@@ -1199,6 +1246,7 @@ local function buildMaze()
                                 else
                                     block.Parent = doorModel
                                     block.Color = objColor
+                                    applyWallTexture(block, name)
                                 end
                             end
                             
@@ -1212,8 +1260,8 @@ local function buildMaze()
                                 fb.Name = objName .. "_Pickup"
                                 if fb:IsA("Model") then
                                     local cframe, size = fb:GetBoundingBox()
-                                    fb:PivotTo(CFrame.new(posX, size.Y/2 + 0.4, posZ))
-                                    fb:SetAttribute("BasePosition", Vector3.new(posX, size.Y/2 + 0.4, posZ))
+                                    fb:PivotTo(CFrame.new(posX, size.Y/2 + 3.0, posZ))
+                                    fb:SetAttribute("BasePosition", Vector3.new(posX, size.Y/2 + 3.0, posZ))
                                     fb:SetAttribute("IsKey", true)
                                     for _, p in ipairs(fb:GetDescendants()) do
                                         if p:IsA("BasePart") then 
@@ -1224,8 +1272,8 @@ local function buildMaze()
                                     end
                                 elseif fb:IsA("BasePart") or fb:IsA("MeshPart") then
                                     local size = fb.Size
-                                    fb.CFrame = CFrame.new(posX, size.Y/2 + 0.4, posZ)
-                                    fb:SetAttribute("BasePosition", Vector3.new(posX, size.Y/2 + 0.4, posZ))
+                                    fb.CFrame = CFrame.new(posX, size.Y/2 + 3.0, posZ)
+                                    fb:SetAttribute("BasePosition", Vector3.new(posX, size.Y/2 + 3.0, posZ))
                                     fb:SetAttribute("IsKey", true)
                                     fb.Color = objColor
                                     fb.Anchored = true
@@ -1244,8 +1292,8 @@ local function buildMaze()
                                 fb.Anchored = true
                                 fb.CanCollide = false
                                 fb.Size = Vector3.new(2,2,2)
-                                fb.CFrame = CFrame.new(posX, fb.Size.Y/2 + 0.4, posZ)
-                                fb:SetAttribute("BasePosition", Vector3.new(posX, fb.Size.Y/2 + 0.4, posZ))
+                                fb.CFrame = CFrame.new(posX, fb.Size.Y/2 + 3.0, posZ)
+                                fb:SetAttribute("BasePosition", Vector3.new(posX, fb.Size.Y/2 + 3.0, posZ))
                                 fb:SetAttribute("IsKey", true)
                                 fb.Color = objColor
                                 fb.Parent = keysFolder

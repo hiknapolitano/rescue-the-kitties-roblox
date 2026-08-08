@@ -13,6 +13,7 @@ local purchaseItemRemote = remotes:WaitForChild("PurchaseItem")
 
 local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
 local SoundManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SoundManager"))
+local TranslationHelper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TranslationHelper"))
 
 local function getVisualModel(template)
     local cloneModel = Instance.new("Model")
@@ -99,7 +100,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
     title.Size = UDim2.new(1, -60, 0, 40)
     title.Position = UDim2.new(0, 10, 0, 10)
     title.BackgroundTransparency = 1
-    title.Text = "🛒 KITTEN RESCUE SHOP"
+    title.Text = "🛒 " .. TranslationHelper.translate("KITTEN RESCUE SHOP")
     title.TextColor3 = Color3.fromRGB(255, 215, 0)
     title.Font = Enum.Font.FredokaOne
     title.TextScaled = true
@@ -113,7 +114,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
     promoText.Size = UDim2.new(1, -20, 0, 25)
     promoText.Position = UDim2.new(0, 10, 0, 50)
     promoText.BackgroundTransparency = 1
-    promoText.Text = "Join our Roblox Group for 20% off all items!"
+    promoText.Text = TranslationHelper.translate("Join our Roblox Group for 20% off all items!")
     promoText.TextColor3 = Color3.fromRGB(150, 255, 150)
     promoText.Font = Enum.Font.FredokaOne
     promoText.TextScaled = true
@@ -279,7 +280,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
                     local fallback = Instance.new("TextLabel")
                     fallback.Size = UDim2.new(1, 0, 1, 0)
                     fallback.BackgroundTransparency = 1
-                    fallback.Text = item.name
+                    fallback.Text = TranslationHelper.translate(item.name)
                     fallback.TextColor3 = Color3.fromRGB(255, 255, 255)
                     fallback.Font = Enum.Font.FredokaOne
                     fallback.TextScaled = true
@@ -294,7 +295,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
         nameLabel.BackgroundTransparency = 1
         
         local showDiscount = hasDiscount and not isGamepass
-        nameLabel.Text = item.name .. (showDiscount and " (20% OFF)" or "")
+        nameLabel.Text = TranslationHelper.translate(item.name) .. (showDiscount and " " .. TranslationHelper.translate("(20% OFF)") or "")
         nameLabel.TextColor3 = showDiscount and Color3.fromRGB(150, 255, 150) or Color3.new(1, 1, 1)
         nameLabel.Font = Enum.Font.FredokaOne
         nameLabel.TextScaled = true
@@ -310,7 +311,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
         descLabel.Size = UDim2.new(1, -210, 0, 30)
         descLabel.Position = UDim2.new(0, 75, 0, 35)
         descLabel.BackgroundTransparency = 1
-        descLabel.Text = item.desc
+        descLabel.Text = TranslationHelper.translate(item.desc)
         descLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
         descLabel.Font = Enum.Font.Nunito
         descLabel.TextScaled = true
@@ -328,7 +329,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
         buyBtn.Position = UDim2.new(1, -10, 0.5, 0)
         buyBtn.AnchorPoint = Vector2.new(1, 0.5)
         buyBtn.BackgroundColor3 = isGamepass and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(46, 204, 113)
-        buyBtn.Text = isGamepass and "BUY" or ("Buy\n(" .. finalPrice .. "💰)")
+        buyBtn.Text = isGamepass and TranslationHelper.translate("BUY") or (TranslationHelper.translate("Buy") .. "\n(" .. finalPrice .. "💰)")
         buyBtn.TextColor3 = isGamepass and Color3.fromRGB(20, 20, 20) or Color3.new(1, 1, 1)
         buyBtn.Font = Enum.Font.GothamBold
         buyBtn.TextScaled = true
@@ -352,7 +353,7 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
                     local success, msg = purchaseItemRemote:InvokeServer(item.id)
                     if success then
                         buyBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-                        buyBtn.Text = "Owned!"
+                        buyBtn.Text = TranslationHelper.translate("Owned!")
                     end
                 else
                     if item.id == "MinimapPerm" then
@@ -364,24 +365,24 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
                 return
             end
             
-            buyBtn.Text = "Processing..."
+            buyBtn.Text = TranslationHelper.translate("Processing...")
             buyBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
             
             local success, msg = purchaseItemRemote:InvokeServer(item.id)
             
             if success then
                 buyBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-                buyBtn.Text = "Success!"
+                buyBtn.Text = TranslationHelper.translate("Success!")
                 task.wait(1)
                 if buyBtn then
-                    buyBtn.Text = "Buy\n(" .. finalPrice .. "💰)"
+                    buyBtn.Text = TranslationHelper.translate("Buy") .. "\n(" .. finalPrice .. "💰)"
                 end
             else
                 buyBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-                buyBtn.Text = "Failed"
+                buyBtn.Text = TranslationHelper.translate("Failed")
                 task.wait(1)
                 if buyBtn then
-                    buyBtn.Text = "Buy\n(" .. finalPrice .. "💰)"
+                    buyBtn.Text = TranslationHelper.translate("Buy") .. "\n(" .. finalPrice .. "💰)"
                     buyBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
                 end
             end
@@ -414,5 +415,6 @@ openShopRemote.OnClientEvent:Connect(function(itemsList)
             SoundManager.playClick(Constants.Sounds.ShopBuy)
             closeShop()
         end
+        return Enum.ContextActionResult.Sink
     end, false, Enum.KeyCode.ButtonB)
 end)

@@ -8,6 +8,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared:WaitForChild("Constants"))
 local SoundManager = require(Shared:WaitForChild("SoundManager"))
+local TranslationHelper = require(Shared:WaitForChild("TranslationHelper"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local showWinScreenRemote = remotes:WaitForChild("ShowWinScreen")
@@ -64,7 +65,7 @@ showWinScreenRemote.OnClientEvent:Connect(function(totalSeconds, stars)
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -40, 0, 50)
     title.BackgroundTransparency = 1
-    title.Text = "YOU WON!"
+    title.Text = TranslationHelper.translate("YOU WON!")
     title.TextColor3 = Color3.fromRGB(255, 215, 0)
     title.Font = Enum.Font.FredokaOne
     title.TextSize = 48
@@ -75,7 +76,7 @@ showWinScreenRemote.OnClientEvent:Connect(function(totalSeconds, stars)
     local subtitle = Instance.new("TextLabel")
     subtitle.Size = UDim2.new(1, -40, 0, 80)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "You rescued all the kittens safely!"
+    subtitle.Text = TranslationHelper.translate("You rescued all the kittens safely!")
     subtitle.TextColor3 = Color3.new(1, 1, 1)
     subtitle.Font = Enum.Font.Nunito
     subtitle.TextSize = 22
@@ -87,7 +88,7 @@ showWinScreenRemote.OnClientEvent:Connect(function(totalSeconds, stars)
     local timeLabel = Instance.new("TextLabel")
     timeLabel.Size = UDim2.new(1, -40, 0, 40)
     timeLabel.BackgroundTransparency = 1
-    timeLabel.Text = "⏱️ Time: " .. formatTime(totalSeconds)
+    timeLabel.Text = "⏱️ " .. TranslationHelper.translate("Time:") .. " " .. formatTime(totalSeconds)
     timeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     timeLabel.Font = Enum.Font.GothamBold
     timeLabel.TextSize = 24
@@ -139,7 +140,7 @@ showWinScreenRemote.OnClientEvent:Connect(function(totalSeconds, stars)
     local playButton = Instance.new("TextButton")
     playButton.Size = UDim2.new(0, 240, 0, 55)
     playButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-    playButton.Text = "OK"
+    playButton.Text = TranslationHelper.translate("OK")
     playButton.TextColor3 = Color3.new(1, 1, 1)
     playButton.Font = Enum.Font.FredokaOne
     playButton.TextSize = 24

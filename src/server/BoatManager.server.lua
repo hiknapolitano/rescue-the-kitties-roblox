@@ -171,7 +171,8 @@ toggleBoatRemote.OnServerEvent:Connect(function(player, enter, targetPos)
                     local cellX = math.floor((pos.X - mazeOffset.X + cellSize/2) / cellSize) + 1
                     local cellZ = math.floor((pos.Z - mazeOffset.Z + cellSize/2) / cellSize) + 1
                     local row = mapLayout[cellZ]
-                    return row and row[cellX] == 26
+                    -- Allow boat to drive on water (26) or white light teleporters (8)
+                    return row and (row[cellX] == 26 or row[cellX] == 8)
                 end
                 
                 local connection
@@ -240,8 +241,8 @@ toggleBoatRemote.OnServerEvent:Connect(function(player, enter, targetPos)
             
             for z, row in ipairs(layout) do
                 for x, cellType in ipairs(row) do
-                    -- Walkable paths are any cells that are NOT walls or hazards or water
-                    local isWalkable = (cellType ~= 1 and cellType ~= 24 and cellType ~= 25 and cellType ~= 26 and cellType ~= 28)
+                    -- Walkable paths are any cells that are NOT walls, hazards, water, or teleporters (8)
+                    local isWalkable = (cellType ~= 1 and cellType ~= 8 and cellType ~= 24 and cellType ~= 25 and cellType ~= 26 and cellType ~= 28)
                     if isWalkable then
                         local mazeOffset = Constants.MazeOffset or Vector3.new(0, 0, 0)
                         local px = (x - 1) * cellSize + mazeOffset.X

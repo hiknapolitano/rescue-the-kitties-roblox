@@ -193,20 +193,22 @@ catCollectedEvent.Event:Connect(function(player)
     
     if currentCats >= Constants.TotalCats then
         print("All cats collected! Return to safe zone to win.")
-        
-        -- Start checking if player reaches safe zone
-        task.spawn(function()
-            while not player:GetAttribute("GameWon") do
-                task.wait(0.5)
-                local cats = player:GetAttribute("CatsRescued") or 0
-                if cats < Constants.TotalCats then
-                    break
-                end
-                if player.Character then
-                    checkSafeZoneWin(player.Character)
+    end
+end)
+
+-- Global win zone checker loop (ensures victory is detected regardless of how cats were collected/credited)
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        for _, player in ipairs(Players:GetPlayers()) do
+            local cats = player:GetAttribute("CatsRescued") or 0
+            if cats >= Constants.TotalCats and not player:GetAttribute("GameWon") then
+                local character = player.Character
+                if character then
+                    checkSafeZoneWin(character)
                 end
             end
-        end)
+        end
     end
 end)
 
@@ -299,21 +301,12 @@ resetWinStateRemote.OnServerEvent:Connect(function(player)
     player:SetAttribute("HasBlackKey", nil)
     player:SetAttribute("HasRainbowKey", nil)
     
-    -- Dismount and clear boat if any
-    local activeBoat = workspace:FindFirstChild(player.Name .. "_ActiveBoat")
-    if activeBoat then
-        activeBoat:Destroy()
-    end
-    player:SetAttribute("InBoat", false)
-    
+    -- Force dismount and restore default collision state on character parts before reloading
     local character = player.Character
     if character then
         local hum = character:FindFirstChild("Humanoid")
         if hum then
             hum.Sit = false
-            hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-            hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-            hum.WalkSpeed = Constants.PlayerWalkSpeed or 22
         end
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -322,15 +315,72 @@ resetWinStateRemote.OnServerEvent:Connect(function(player)
         end
     end
     
-    local spawnLoc = workspace:FindFirstChild("SpawnLocation")
-    if character and character.PrimaryPart and spawnLoc then
-        character:PivotTo(CFrame.new(spawnLoc.Position + Vector3.new(0, 3, 0)))
+    -- Destroy and clear boat if any
+    local activeBoat = workspace:FindFirstChild(player.Name .. "_ActiveBoat")
+    if activeBoat then
+        activeBoat:Destroy()
     end
+    player:SetAttribute("InBoat", false)
+    
+    -- Load character to spawning base cleanly (completely resets physics, health, and animations)
+    player:LoadCharacter()
     
     local resetCatsEvent = remotesFolder:FindFirstChild("ResetCats")
     if resetCatsEvent then resetCatsEvent:Fire(player) end
     
     resetHudRemote:FireClient(player)
+end)
+
+-- Developer Testing Tool RemoteEvent (Securely Whitelisted)
+local devUnlockAllCatsRemote = remotesFolder:FindFirstChild("DevUnlockAllCatsRemote") or Instance.new("RemoteEvent")
+devUnlockAllCatsRemote.Name = "DevUnlockAllCatsRemote"
+devUnlockAllCatsRemote.Parent = remotesFolder
+
+devUnlockAllCatsRemote.OnServerEvent:Connect(function(player)
+    -- Whitelist Check on Server
+    local whitelisted = false
+    if player.Name == "beabadoobeelson" then
+        whitelisted = true
+    elseif Constants.ShopOwnerUsernames then
+        for _, u in ipairs(Constants.ShopOwnerUsernames) do
+            if u == player.Name then
+                whitelisted = true
+                break
+            end
+        end
+    end
+    
+    if not whitelisted then return end
+    
+    -- Grant all keys
+    local keys = {"Blue", "Yellow", "Red", "Green", "Purple", "Cyan", "Orange", "White", "Black", "Rainbow"}
+    for _, keyColor in ipairs(keys) do
+        player:SetAttribute("Has" .. keyColor .. "Key", true)
+    end
+    
+    -- Rescue all cats
+    player:SetAttribute("CatsRescued", Constants.TotalCats)
+    
+    -- Update client UI
+    local catCollectedRemote = remotesFolder:FindFirstChild("CatCollectedClient")
+    if catCollectedRemote then
+        catCollectedRemote:FireClient(player, Constants.TotalCats)
+    end
+    
+    -- Hide all cats locally for this dev player
+    local hideCatRemote = remotesFolder:FindFirstChild("HideCatClient")
+    if hideCatRemote then
+        local catsFolder = workspace:FindFirstChild("Cats")
+        if catsFolder then
+            for _, cat in ipairs(catsFolder:GetChildren()) do
+                if cat:IsA("BasePart") then
+                    hideCatRemote:FireClient(player, cat)
+                end
+            end
+        end
+    end
+    
+    print("[DevCheat] Player " .. player.Name .. " unlocked all keys and cats.")
 end)
 
 local function createFlashlightTool(player, character)

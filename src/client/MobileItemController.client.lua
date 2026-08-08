@@ -1,6 +1,8 @@
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TranslationHelper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TranslationHelper"))
 
 local player = Players.LocalPlayer
 
@@ -50,7 +52,7 @@ local function handleUseItemAction(actionName, inputState, inputObject)
             tool:Deactivate()
         end
     end
-    return Enum.ContextActionResult.Pass
+    return Enum.ContextActionResult.Sink
 end
 
 -- Use Item bound to ButtonB (Circle). R2 is now Sprint.
@@ -152,7 +154,7 @@ local function updateButtonLogic()
             targetAction = "None"
         else
             targetAction = "Use"
-            btnText = "Use " .. tool.Name
+            btnText = TranslationHelper.translate("Use") .. " " .. TranslationHelper.translate(tool.Name)
         end
     else
         targetAction = "None"

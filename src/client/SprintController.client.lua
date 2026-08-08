@@ -35,18 +35,51 @@ if not isMobile then
         elseif inputState == Enum.UserInputState.End then
             isHoldingSprint = false
         end
-        -- Sink the input so R1 doesn't propagate to other actions
+        -- Sink the input so R2 doesn't propagate to other actions
         return Enum.ContextActionResult.Sink
     end
-    -- Sprint: LeftShift (keyboard) or R1 (gamepad).
-    -- R2 is NOT used because Roblox maps R2 to tool activation (left-click) by default.
+    -- Sprint: LeftShift (keyboard) or R2 (gamepad).
+    -- Returning Enum.ContextActionResult.Sink overrides Roblox's default tool activation.
     ContextActionService:BindAction("Sprint", handleSprintAction, false,
-        Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonR1)
+        Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonR2)
 end
 
 -- Cache player references for sprint
 local cachedSprintChar = nil
 local cachedSprintHumanoid = nil
+
+local damageBlur = 0
+local damageShakeAmount = 0
+local lastHP = player:GetAttribute("HP") or Constants.MaximumHP or 100
+
+player:GetAttributeChangedSignal("HP"):Connect(function()
+    local hp = player:GetAttribute("HP") or Constants.MaximumHP or 100
+    if hp < lastHP then
+        local damageTaken = lastHP - hp
+        if damageTaken > 0 and hp > 0 then
+            -- Pain blur spike (scaled to damage taken)
+            local scaleB = Constants.DamageBlurScale or 1.2
+            local minB = Constants.DamageBlurMin or 15.0
+            local maxB = Constants.DamageBlurMax or 40.0
+            damageBlur = math.clamp(damageTaken * scaleB, minB, maxB)
+            
+            -- Camera shake spike (scaled to damage taken)
+            local scaleS = Constants.DamageShakeScale or 0.25
+            local minS = Constants.DamageShakeMin or 1.5
+            local maxS = Constants.DamageShakeMax or 5.0
+            damageShakeAmount = math.clamp(damageTaken * scaleS, minS, maxS)
+            
+            -- Instantly apply the damage blur spike directly to the visual blur size for instant punchy response!
+            local lighting = game:GetService("Lighting")
+            local blur = lighting:FindFirstChild("SpeedBlur")
+            if blur then
+                blur.Size = math.max(blur.Size, damageBlur)
+            end
+        end
+    end
+    lastHP = hp
+end)
+
 
 local function refreshSprintCache()
     cachedSprintChar = player.Character
@@ -59,6 +92,8 @@ player.CharacterAdded:Connect(function(char)
     isExhausted = false
     isHoldingSprint = false
     mobileSprintCooldown = false
+    damageBlur = 0
+    damageShakeAmount = 0
     if staminaSound then SoundManager.stopSound(staminaSound); staminaSound = nil end
     if slimeSound then SoundManager.stopSound(slimeSound); slimeSound = nil end
     
@@ -77,6 +112,26 @@ RunService.RenderStepped:Connect(function(dt)
     local humanoid = cachedSprintHumanoid
 
     if not humanoid then return end
+
+    -- ── Decay damage visuals ────────────────────────────────────────────────
+    if damageBlur > 0 then
+        local decayB = Constants.DamageBlurDecay or 6.0
+        damageBlur = math.max(0, damageBlur - decayB * dt)
+    end
+    
+    if damageShakeAmount > 0 then
+        local decayS = Constants.DamageShakeDecay or 2.0
+        damageShakeAmount = math.max(0, damageShakeAmount - decayS * dt)
+        if damageShakeAmount > 0 then
+            local shakeX = (math.random() * 2 - 1) * damageShakeAmount
+            local shakeY = (math.random() * 2 - 1) * damageShakeAmount
+            local shakeZ = (math.random() * 2 - 1) * damageShakeAmount
+            humanoid.CameraOffset = Vector3.new(shakeX, shakeY, shakeZ)
+        else
+            humanoid.CameraOffset = Vector3.zero
+        end
+    end
+
 
     local isMoving = humanoid.MoveDirection.Magnitude > 0
 
@@ -201,12 +256,19 @@ RunService.RenderStepped:Connect(function(dt)
     end
 
     if camera then
-        local targetFOV = isBoosted and 95 or 70
+        local baseFOV = Constants.BaseFOV or 70
+        local sprintFOV = Constants.SprintFOV or 82
+        local boostFOV = Constants.BoostFOV or 95
+        local targetFOV = isBoosted and boostFOV or (isSprinting and sprintFOV or baseFOV)
         camera.FieldOfView = camera.FieldOfView + (targetFOV - camera.FieldOfView) * 10 * dt
     end
 
-    local targetBlur = isBoosted and 4 or 0
-    blur.Size = blur.Size + (targetBlur - blur.Size) * 10 * dt
+    -- Combine all blur sources:
+    local runningBlur = isSprinting and (Constants.SprintBlurSize or 1.5) or 0
+    local boostBlur = isBoosted and (Constants.BoostBlurSize or 3.0) or 0
+    
+    local targetBlur = runningBlur + boostBlur + damageBlur
+    blur.Size = blur.Size + (targetBlur - blur.Size) * 6 * dt
 
     -- Save attributes for HUD and DogAI
     player:SetAttribute("Stamina", currentStamina)

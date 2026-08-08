@@ -36,12 +36,44 @@ local Constants = {
     
     WallThickness = 2,
     
+    -- Wall Texture Assets (PBR/HD Seamless Tiling)
+    WallBaseTextureId = "rbxassetid://4954759675",   -- HD Seamless Tiling Rock/Stone
+    WallMiddleTextureId = "rbxassetid://4954635422", -- HD Seamless Tiling Grass/Leaves
+    WallTopTextureId = "rbxassetid://4954759675",    -- HD Seamless Tiling Rock/Stone
+    
+    -- Wall Texture Tiling Scale (smaller = more repeats, sharper detail, smaller tiles)
+    WallBaseTextureScale = 3,   -- 4 studs per tile
+    WallMiddleTextureScale = 1, -- 5 studs per tile
+    WallTopTextureScale = 3,    -- 4 studs per tile
+    
+    -- Camera FOV Settings
+    BaseFOV = 70,
+    SprintFOV = 82,
+    BoostFOV = 95,
+    
+    -- Screen Blur Settings (Sprinting & Boosting)
+    SprintBlurSize = 1.5, -- Subtle blur size
+    BoostBlurSize = 3.0,  -- Subtle boost blur size
+    
+    -- Damage/Pain Effects Settings
+    DamageBlurScale = 1.2,
+    DamageBlurMin = 5.0,
+    DamageBlurMax = 20.0,
+    DamageBlurDecay = 10.0, -- units decayed per second
+    
+    DamageShakeScale = 0.02, -- Way more subtle shake factor
+    DamageShakeMin = 0.1,    -- Subtle minimum shake
+    DamageShakeMax = 0.7,    -- Subtle maximum shake cap
+    DamageShakeDecay = 3.0,  -- Faster settle decay
+    
     -- Ground Configuration
     GroundColorA = Color3.fromRGB(44, 30, 20), -- Dark Mud
     GroundColorB = Color3.fromRGB(60, 45, 30), -- Lighter Mud
     GroundColorC = Color3.fromRGB(30, 45, 20), -- Mossy Mud
     GroundColorD = Color3.fromRGB(20, 20, 20), -- Ashy/Burnt Ground
     GroundMaterial = Enum.Material.Ground,
+    GroundTextureId = "",                      -- Leave empty to use default Roblox Material, or set custom texture ID
+    GroundTextureScale = 1,                    -- studs per tile
     
     LavaBorderThickness = 1.5,
     LavaBorderColor = Color3.fromRGB(40, 40, 45),

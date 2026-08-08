@@ -2,8 +2,10 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
+local TranslationHelper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TranslationHelper"))
 local playerGui = player:WaitForChild("PlayerGui")
 
 local mainHud = playerGui:WaitForChild("MainHUD")
@@ -30,7 +32,7 @@ local function createButton(text, parent)
     btn.Size = UDim2.new(0, 50, 0, 50)
     btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     btn.BackgroundTransparency = 0.3
-    btn.Text = text
+    btn.Text = TranslationHelper.translate(text)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.FredokaOne
     btn.TextSize = 24
@@ -93,7 +95,7 @@ local function createPopup(titleText)
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0.15, 0)
     title.BackgroundTransparency = 1
-    title.Text = titleText
+    title.Text = TranslationHelper.translate(titleText)
     title.TextColor3 = Color3.fromRGB(230, 230, 250)
     title.Font = Enum.Font.FredokaOne
     title.TextSize = 32
@@ -161,7 +163,7 @@ local function createSlider(text, attributeName, parent)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0.4, 0, 1, 0)
     label.BackgroundTransparency = 1
-    label.Text = text
+    label.Text = TranslationHelper.translate(text)
     label.TextColor3 = Color3.new(1, 1, 1)
     label.Font = Enum.Font.FredokaOne
     label.TextSize = 20
@@ -259,7 +261,7 @@ local function createSegmentToggle(parent)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0.4, 0, 1, 0)
     label.BackgroundTransparency = 1
-    label.Text = "Graphics Mode"
+    label.Text = TranslationHelper.translate("Graphics Mode")
     label.TextColor3 = Color3.new(1, 1, 1)
     label.Font = Enum.Font.FredokaOne
     label.TextSize = 20
@@ -288,7 +290,7 @@ local function createSegmentToggle(parent)
     local qBtn = Instance.new("TextButton")
     qBtn.Size = UDim2.new(0.5, 0, 1, 0)
     qBtn.BackgroundTransparency = 1
-    qBtn.Text = "Quality"
+    qBtn.Text = TranslationHelper.translate("Quality")
     qBtn.TextColor3 = Color3.fromRGB(30, 30, 40)
     qBtn.Font = Enum.Font.FredokaOne
     qBtn.TextSize = 16
@@ -298,7 +300,7 @@ local function createSegmentToggle(parent)
     pBtn.Size = UDim2.new(0.5, 0, 1, 0)
     pBtn.Position = UDim2.new(0.5, 0, 0, 0)
     pBtn.BackgroundTransparency = 1
-    pBtn.Text = "Fast"
+    pBtn.Text = TranslationHelper.translate("Fast")
     pBtn.TextColor3 = Color3.new(1, 1, 1)
     pBtn.Font = Enum.Font.FredokaOne
     pBtn.TextSize = 16
@@ -344,7 +346,7 @@ local function createVibrationToggle(parent)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0.4, 0, 1, 0)
     label.BackgroundTransparency = 1
-    label.Text = "Vibration"
+    label.Text = TranslationHelper.translate("Vibration")
     label.TextColor3 = Color3.new(1, 1, 1)
     label.Font = Enum.Font.FredokaOne
     label.TextSize = 20
@@ -371,7 +373,7 @@ local function createVibrationToggle(parent)
     local onBtn = Instance.new("TextButton")
     onBtn.Size = UDim2.new(0.5, 0, 1, 0)
     onBtn.BackgroundTransparency = 1
-    onBtn.Text = "On"
+    onBtn.Text = TranslationHelper.translate("On")
     onBtn.TextColor3 = Color3.fromRGB(30, 30, 40)
     onBtn.Font = Enum.Font.FredokaOne
     onBtn.TextSize = 16
@@ -381,7 +383,7 @@ local function createVibrationToggle(parent)
     offBtn.Size = UDim2.new(0.5, 0, 1, 0)
     offBtn.Position = UDim2.new(0.5, 0, 0, 0)
     offBtn.BackgroundTransparency = 1
-    offBtn.Text = "Off"
+    offBtn.Text = TranslationHelper.translate("Off")
     offBtn.TextColor3 = Color3.new(1, 1, 1)
     offBtn.Font = Enum.Font.FredokaOne
     offBtn.TextSize = 16
@@ -418,7 +420,7 @@ createVibrationToggle(settingsContent)
 local credits = Instance.new("TextLabel")
 credits.Size = UDim2.new(1, 0, 0, 40)
 credits.BackgroundTransparency = 1
-credits.Text = "This game was created by beabadoobeelson"
+credits.Text = TranslationHelper.translate("This game was created by beabadoobeelson")
 credits.TextColor3 = Color3.fromRGB(150, 150, 170)
 credits.Font = Enum.Font.FredokaOne
 credits.TextSize = 14
@@ -430,7 +432,7 @@ local function createHelpText(text)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -20, 0, 0)
     label.BackgroundTransparency = 1
-    label.Text = text
+    label.Text = TranslationHelper.translate(text)
     label.TextColor3 = Color3.new(1, 1, 1)
     label.Font = Enum.Font.FredokaOne
     label.TextSize = 16
@@ -467,31 +469,31 @@ local function updateControlsText()
     local hasGamepad = UserInputService:GetGamepadConnected(Enum.UserInputType.Gamepad1)
     local hasTouch = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 
-    local txt = "\n<b><font size=\"20\">Controls:</font></b>\n"
+    local txt = "\n<b><font size=\"20\">" .. TranslationHelper.translate("Controls:") .. "</font></b>\n"
     if hasGamepad then
-        txt = txt .. "• Move: " .. formatBtn("L-STICK") .. "\n"
-        txt = txt .. "• Look: " .. formatBtn("R-STICK") .. "\n"
-        txt = txt .. "• Sprint: " .. formatBtn("R2") .. " (Right Trigger)\n"
-        txt = txt .. "• Use Item: " .. formatBtn("B / Circle") .. "\n"
-        txt = txt .. "• Cycle Items: " .. formatBtn("L1") .. " / " .. formatBtn("R1") .. "\n"
-        txt = txt .. "• Interact: " .. formatBtn("X / Square") .. "\n"
-        txt = txt .. "• Settings: " .. formatBtn("START") .. "\n"
-        txt = txt .. "• Map Zoom In: " .. formatBtn("DPad UP") .. "\n"
-        txt = txt .. "• Map Zoom Out: " .. formatBtn("DPad DOWN")
+        txt = txt .. "• " .. TranslationHelper.translate("Move") .. ": " .. formatBtn(TranslationHelper.translate("L-STICK")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Look") .. ": " .. formatBtn(TranslationHelper.translate("R-STICK")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Sprint") .. ": " .. formatBtn("R2") .. " (" .. TranslationHelper.translate("Right Trigger") .. ")\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Use Item") .. ": " .. formatBtn("B / Circle") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Cycle Items") .. ": " .. formatBtn("L1") .. " / " .. formatBtn("R1") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Interact") .. ": " .. formatBtn("X / Square") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Settings") .. ": " .. formatBtn("START") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Map Zoom In") .. ": " .. formatBtn("DPad UP") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Map Zoom Out") .. ": " .. formatBtn("DPad DOWN")
     elseif hasTouch then
-        txt = txt .. "• Move: " .. formatBtn("L-JOYSTICK") .. "\n"
-        txt = txt .. "• Look: " .. formatBtn("Drag Screen") .. "\n"
-        txt = txt .. "• Sprint: " .. formatBtn("Sprint Button") .. "\n"
-        txt = txt .. "• Use Item: " .. formatBtn("Tap Item") .. "\n"
-        txt = txt .. "• Interact: " .. formatBtn("Tap Prompt") .. "\n"
-        txt = txt .. "• Map Zoom: " .. formatBtn("Tap +/-")
+        txt = txt .. "• " .. TranslationHelper.translate("Move") .. ": " .. formatBtn(TranslationHelper.translate("L-JOYSTICK")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Look") .. ": " .. formatBtn(TranslationHelper.translate("Drag Screen")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Sprint") .. ": " .. formatBtn(TranslationHelper.translate("Sprint Button")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Use Item") .. ": " .. formatBtn(TranslationHelper.translate("Tap Item")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Interact") .. ": " .. formatBtn(TranslationHelper.translate("Tap Prompt")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Map Zoom") .. ": " .. formatBtn(TranslationHelper.translate("Tap +/-"))
     else
-        txt = txt .. "• Move: " .. formatBtn("W A S D") .. "\n"
-        txt = txt .. "• Look: " .. formatBtn("Mouse") .. "\n"
-        txt = txt .. "• Sprint: " .. formatBtn("SHIFT") .. "\n"
-        txt = txt .. "• Use Item: " .. formatBtn("1-9") .. " or " .. formatBtn("Click") .. "\n"
-        txt = txt .. "• Interact: " .. formatBtn("E") .. "\n"
-        txt = txt .. "• Map Zoom: " .. formatBtn("Click +/-")
+        txt = txt .. "• " .. TranslationHelper.translate("Move") .. ": " .. formatBtn("W A S D") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Look") .. ": " .. formatBtn(TranslationHelper.translate("Mouse")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Sprint") .. ": " .. formatBtn("SHIFT") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Use Item") .. ": " .. formatBtn("1-9") .. " " .. TranslationHelper.translate("or") .. " " .. formatBtn(TranslationHelper.translate("Click")) .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Interact") .. ": " .. formatBtn("E") .. "\n"
+        txt = txt .. "• " .. TranslationHelper.translate("Map Zoom") .. ": " .. formatBtn(TranslationHelper.translate("Click +/-"))
     end
     controlsText.Text = txt
 end

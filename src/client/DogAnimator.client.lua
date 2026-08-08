@@ -125,15 +125,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
             activeDogs[dogModel] = nil
             continue
         end
-        
-        -- Distance culling: skip cosmetic animation for far dogs
-        if playerPos then
-            local dx = playerPos.X - data.rootPart.Position.X
-            local dz = playerPos.Z - data.rootPart.Position.Z
-            if (dx * dx + dz * dz) > DOG_ANIM_RANGE_SQ then
-                continue
-            end
-        end
+        -- Keep animating dogs at any distance to prevent ugly static floating when far but visible
         
         local speed = data.rootPart.AssemblyLinearVelocity.Magnitude
         local isMoving = speed > 0.5 or (data.humanoid and data.humanoid.MoveDirection.Magnitude > 0)

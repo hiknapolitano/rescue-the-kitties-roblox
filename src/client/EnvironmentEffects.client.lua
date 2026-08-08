@@ -64,16 +64,30 @@ local function createLavaParticlesForPart(child)
         NumberSequenceKeypoint.new(0.8, 0.4),
         NumberSequenceKeypoint.new(1, 1)
     })
-    emitter.Lifetime = NumberRange.new(0.8, 1.8)
-    emitter.Rate = 12 -- Looks active and bubbly without lag
-    emitter.Speed = NumberRange.new(2.0, 5.0)
-    emitter.Acceleration = Vector3.new(0, 4.0, 0) -- Rises upward faster
-    emitter.SpreadAngle = Vector2.new(45, 45) -- Bubbly spread
+    emitter.Lifetime = NumberRange.new(1.0, 2.0)
+    emitter.Rate = 4 -- Sparse and distinct bubble pops
+    emitter.Speed = NumberRange.new(6.0, 12.0)
+    emitter.Acceleration = Vector3.new(0, -12.0, 0) -- Gentle gravity pulls them back down
+    emitter.SpreadAngle = Vector2.new(10, 10) -- Shoots mostly straight up and down
     emitter.EmissionDirection = Enum.NormalId.Top
     emitter.Enabled = enabled
     emitter.Parent = child
     
     table.insert(lavaEmitters, emitter)
+end
+
+local function isPartForJustLava(part)
+    if not part:IsA("BasePart") then return false end
+    if part.Name == "JustLava" then return true end
+    
+    local parent = part.Parent
+    while parent and parent ~= workspace and parent.Name ~= "MazeElements" do
+        if parent.Name == "JustLava" then
+            return true
+        end
+        parent = parent.Parent
+    end
+    return false
 end
 
 local function setupLavaParticles()
@@ -89,7 +103,7 @@ local function setupLavaParticles()
     if not mazeElements then return end
     
     for _, child in ipairs(mazeElements:GetDescendants()) do
-        if child:IsA("BasePart") and (child.Name == "Lava" or child.Name == "JustLava" or child.Name == "LavaObby") then
+        if isPartForJustLava(child) then
             createLavaParticlesForPart(child)
         end
     end
@@ -137,7 +151,7 @@ workspace:GetAttributeChangedSignal("MazeGenerated"):Connect(onMazeGeneratedChan
 -- Handle streaming and dynamic replication
 workspace.DescendantAdded:Connect(function(desc)
     if not workspace:GetAttribute("MazeGenerated") then return end
-    if desc:IsA("BasePart") and (desc.Name == "Lava" or desc.Name == "JustLava" or desc.Name == "LavaObby") then
+    if isPartForJustLava(desc) then
         local mazeElements = workspace:FindFirstChild("MazeElements")
         if mazeElements and desc:IsDescendantOf(mazeElements) then
             createLavaParticlesForPart(desc)

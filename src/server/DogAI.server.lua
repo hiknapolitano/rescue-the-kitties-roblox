@@ -94,9 +94,17 @@ local function createDogModel(position, dogName)
         local pivot = customDog:GetPivot()
         local pivotToBottom = pivot.Position.Y - (bboxCFrame.Position.Y - bboxSize.Y / 2)
         
-        -- R6 HumanoidRootPart center is fixed at exactly 3 studs above the floor.
-        -- Shift the visual model so its lowest point (the paws) perfectly touches 0 relative to the floor.
-        local yOffset = pivotToBottom - 3
+        -- Resize HumanoidRootPart to match the exact visual size of the dog, so that
+        -- its bounding volume (including the head) collides with walls!
+        rootPart.Size = bboxSize
+        
+        -- Set a small HipHeight to keep the rootPart collider suspended 0.15 studs above the floor.
+        -- This prevents floor scraping/collisions, avoiding physics jitter, bounces, or random rotation.
+        local hipHeight = 0.15
+        humanoid.HipHeight = hipHeight
+        
+        -- Position the visual paws touching the ground exactly (offset visual center down by hipHeight)
+        local yOffset = (pivot.Position.Y - bboxCFrame.Position.Y) - hipHeight
         
         -- Position it perfectly at the root part with the offset
         if customDog:IsA("Model") then
@@ -338,8 +346,8 @@ local function createDogModel(position, dogName)
             rootMotor.Name = "VisualRootMotor"
             rootMotor.Part0 = rootPart
             rootMotor.Part1 = dogVisualRoot
-            -- Offset C0 by -1 on the Y axis so the pivot (feet) sits at the bottom of the 2x2x2 root part
-            rootMotor.C0 = CFrame.new(0, -1, 0)
+            -- Offset C0 by yOffset so the pivot aligns exactly with the custom offset
+            rootMotor.C0 = CFrame.new(0, yOffset, 0)
             local customPivot = customDog:GetPivot()
             rootMotor.C1 = dogVisualRoot.CFrame:ToObjectSpace(customPivot)
             rootMotor.Parent = rootPart
@@ -1026,6 +1034,7 @@ local function setupDogAI(dogModel)
                     isSearching = true
                     searchTimer = tick()
                     searchWanderPoint = nil
+                    stopChasingSound()
                     
                     humanoid.WalkSpeed = Constants.DogSpeed * 1.2
                     if lastSeenPosition then

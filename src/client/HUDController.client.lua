@@ -8,6 +8,7 @@ local Constants = require(Shared:WaitForChild("Constants"))
 local SoundManager = require(Shared:WaitForChild("SoundManager"))
 local Maps = require(Shared:WaitForChild("Maps"))
 local HapticManager = require(Shared:WaitForChild("HapticManager"))
+local TranslationHelper = require(Shared:WaitForChild("TranslationHelper"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -79,7 +80,7 @@ trollText.Size = UDim2.new(1.5, 0, 0, 40)
 trollText.Position = UDim2.new(1, 0, 1, tCfg.TextSpacing or 5)
 trollText.AnchorPoint = Vector2.new(1, 0)
 trollText.BackgroundTransparency = 1
-trollText.Text = "TROLL everyone!"
+trollText.Text = TranslationHelper.translate("TROLL everyone!")
 trollText.TextColor3 = tCfg.TextColor
 trollText.Font = Enum.Font.FredokaOne
 trollText.TextSize = tCfg.TextSize
@@ -1036,7 +1037,7 @@ winPromptLabel.Name = "WinPrompt"
 winPromptLabel.Size = UDim2.new(0, 500, 0, 50)
 winPromptLabel.AnchorPoint = Vector2.new(0.5, 0)
 winPromptLabel.Position = UDim2.new(0.5, 0, 0, 100)
-winPromptLabel.Text = "🎉 Now find the maze exit and bring all " .. Constants.TotalCats .. " cats to safety! 🎉"
+winPromptLabel.Text = "🎉 " .. TranslationHelper.translate("Now find the maze exit and bring all") .. " " .. Constants.TotalCats .. " " .. TranslationHelper.translate("cats to safety!") .. " 🎉"
 winPromptLabel.TextSize = 24
 winPromptLabel.Font = Enum.Font.GothamBold
 winPromptLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -1079,7 +1080,7 @@ if catCollectedRemote then
         catsLabel.Text = "🐱 " .. cats .. " / " .. Constants.TotalCats
         pcall(function() HapticManager.mediumPulse() end)
         
-        popupLabel.Text = "Kitties rescued: " .. cats .. "/" .. Constants.TotalCats
+        popupLabel.Text = TranslationHelper.translate("Kitties rescued:") .. " " .. cats .. "/" .. Constants.TotalCats
         popupLabel.Visible = true
         popupLabel.TextTransparency = 0
         popupStroke.Transparency = 0
@@ -1297,10 +1298,56 @@ trollRemote.OnClientEvent:Connect(function(buyerName, duration)
         local endTime = tick() + duration
         while tick() < endTime do
             local remaining = math.ceil(endTime - tick())
-            trollLabel.Text = "🚨 " .. buyerName .. " IS TROLLING EVERYONE! (" .. remaining .. "s) 🚨"
+            trollLabel.Text = "🚨 " .. buyerName .. " " .. TranslationHelper.translate("IS TROLLING EVERYONE!") .. " (" .. remaining .. "s) 🚨"
             task.wait(0.5)
         end
         trollLabel.Visible = false
         trollButton.Visible = true
     end)
 end)
+
+-- Developer Testing Button (Whitelisted)
+local function isWhitelisted(name)
+    if name == "beabadoobeelson" then return true end
+    if Constants.ShopOwnerUsernames then
+        for _, u in ipairs(Constants.ShopOwnerUsernames) do
+            if u == name then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+if isWhitelisted(player.Name) then
+    local devButton = Instance.new("TextButton")
+    devButton.Name = "DevUnlockButton"
+    devButton.Size = UDim2.new(0, 160, 0, 45)
+    devButton.Position = UDim2.new(1, -20, 0, 220)
+    devButton.AnchorPoint = Vector2.new(1, 0)
+    devButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+    devButton.TextColor3 = Color3.new(1, 1, 1)
+    devButton.Text = "Unlock & Rescue All"
+    devButton.Font = Enum.Font.FredokaOne
+    devButton.TextSize = 13
+    devButton.TextWrapped = true
+    
+    local devCorner = Instance.new("UICorner")
+    devCorner.CornerRadius = UDim.new(0, 10)
+    devCorner.Parent = devButton
+    
+    local devStroke = Instance.new("UIStroke")
+    devStroke.Color = Color3.fromRGB(255, 255, 255)
+    devStroke.Thickness = 2
+    devStroke.Parent = devButton
+    
+    devButton.Parent = screenGui
+    
+    devButton.MouseButton1Click:Connect(function()
+        local remotes = ReplicatedStorage:WaitForChild("Remotes")
+        local devUnlockAllCatsRemote = remotes:WaitForChild("DevUnlockAllCatsRemote", 5)
+        if devUnlockAllCatsRemote then
+            devUnlockAllCatsRemote:FireServer()
+        end
+    end)
+end

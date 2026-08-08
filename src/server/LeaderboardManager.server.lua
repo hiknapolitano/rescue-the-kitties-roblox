@@ -299,8 +299,9 @@ local function updateLeaderboardDisplay(boardName, dataStore, title, isTime)
         
         -- Value Label
         local valueLabel = Instance.new("TextLabel")
+        valueLabel.AnchorPoint = Vector2.new(1, 0)
         valueLabel.Size = UDim2.new(0.3, 0, 1, 0)
-        valueLabel.Position = UDim2.new(1, -260, 0, 0)
+        valueLabel.Position = UDim2.new(1, -20, 0, 0)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = valueText
         

@@ -7,6 +7,7 @@ local StarterGui = game:GetService("StarterGui")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HapticManager = require(Shared:WaitForChild("HapticManager"))
+local TranslationHelper = require(Shared:WaitForChild("TranslationHelper"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -230,7 +231,7 @@ local function updateInventoryUI()
                             local fallback = Instance.new("TextLabel")
                             fallback.Size = UDim2.new(1, 0, 1, 0)
                             fallback.BackgroundTransparency = 1
-                            fallback.Text = tool.Name
+                            fallback.Text = TranslationHelper.translate(tool.Name)
                             fallback.TextColor3 = Color3.fromRGB(255, 255, 255)
                             fallback.Font = Enum.Font.FredokaOne
                             fallback.TextScaled = true
@@ -388,7 +389,7 @@ ContextActionService:BindAction("GamepadInventoryCycleLeft", function(actionName
         updateGamepadSelection()
         pcall(function() HapticManager.lightTap() end)
     end
-    return Enum.ContextActionResult.Pass
+    return Enum.ContextActionResult.Sink
 end, false, Enum.KeyCode.ButtonL1)
 
 ContextActionService:BindAction("GamepadInventoryCycleRight", function(actionName, state, input)
@@ -398,7 +399,7 @@ ContextActionService:BindAction("GamepadInventoryCycleRight", function(actionNam
         updateGamepadSelection()
         pcall(function() HapticManager.lightTap() end)
     end
-    return Enum.ContextActionResult.Pass
+    return Enum.ContextActionResult.Sink
 end, false, Enum.KeyCode.ButtonR1)
 
 -- Popup notification for "Inventory Full"
@@ -426,7 +427,7 @@ notifyText.Parent = notifyGui
 local notifyEvt = ReplicatedStorage:WaitForChild("ShowNotification", 5)
 if notifyEvt then
     notifyEvt.OnClientEvent:Connect(function(msg)
-        notifyText.Text = msg
+        notifyText.Text = TranslationHelper.translate(msg)
         notifyText.TextTransparency = 0
         notifyText.TextStrokeTransparency = 0
         notifyText.Position = UDim2.new(0.5, 0, 0.45, 0)

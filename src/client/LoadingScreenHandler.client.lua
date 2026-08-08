@@ -6,6 +6,7 @@ local StarterGui = game:GetService("StarterGui")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared:WaitForChild("Constants"))
+local TranslationHelper = require(Shared:WaitForChild("TranslationHelper"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -47,7 +48,7 @@ local loadingText = Instance.new("TextLabel")
 loadingText.Size = UDim2.new(1, 0, 0, 50)
 loadingText.Position = UDim2.new(0, 0, 1, -100)
 loadingText.BackgroundTransparency = 1
-loadingText.Text = "Loading Game..."
+loadingText.Text = TranslationHelper.translate("Loading Game...")
 loadingText.TextColor3 = Color3.new(1, 1, 1)
 loadingText.TextStrokeTransparency = 0.5
 loadingText.Font = Enum.Font.FredokaOne
@@ -73,7 +74,9 @@ end)
 
 task.spawn(function()
     -- Wait for the server to finish generating the maze before proceeding
-    workspace:WaitForChild("MazeElements", math.huge)
+    if not workspace:GetAttribute("MazeGenerated") then
+        workspace:GetAttributeChangedSignal("MazeGenerated"):Wait()
+    end
 
     local SoundService = game:GetService("SoundService")
     local soundCache = SoundService:FindFirstChild("SoundCache")
@@ -130,7 +133,7 @@ task.spawn(function()
         while true do
             task.wait(0.5)
             dots = (dots + 1) % 4
-            loadingText.Text = "Loading Game" .. string.rep(".", dots)
+            loadingText.Text = TranslationHelper.translate("Loading Game") .. string.rep(".", dots)
         end
     end)
     
@@ -145,7 +148,7 @@ task.spawn(function()
     
     -- Force-bake lighting by sweeping the camera across the maze
     -- This causes Roblox's lighting engine to calculate voxels for the playable area
-    loadingText.Text = "Baking Lighting..."
+    loadingText.Text = TranslationHelper.translate("Baking Lighting...")
     
     local camera = workspace.CurrentCamera
     if camera then
@@ -199,11 +202,11 @@ task.spawn(function()
     end
     
     -- Final lighting bake settle time
-    loadingText.Text = "Finalizing..."
+    loadingText.Text = TranslationHelper.translate("Finalizing...")
     task.wait(6)
     
     task.cancel(dotAnim)
-    loadingText.Text = "Welcome!"
+    loadingText.Text = TranslationHelper.translate("Welcome!")
     
     task.wait(1)
     
